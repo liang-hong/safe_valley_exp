@@ -1,0 +1,31 @@
+# Python 编译产物
+__pycache__/
+*.py[cod]
+*.so
+
+# ROS 构建与日志
+build/
+devel/
+log/
+*.bag
+*.active
+
+# 编辑器及系统临时文件
+*.swp
+*.swo
+*~
+.DS_Store
+.idea/
+.vscode/
+
+# 如果你在本地生成了测试或运行时的输出文件（如轨迹记录、截图等）
+*.png
+*.csv
+
+# 参考程序
+follow_15_real.py
+formation_follow.sh
+offb_uav_2.py
+safe_flock_01.py
+safe_flock2_011.py
+worlds/
