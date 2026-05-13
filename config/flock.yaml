@@ -38,7 +38,7 @@ leader:
   submode_channel: 6   # 子模式切换通道 1-based 通道号 (6对应RC通道6)
   leader_topics:
     - {name: mavros/rc/in,                   type: mavros_msgs/RCIn}
-    - {name: leader_gp_origin,               type: sensor_msgs/NavSatFix}
+    - {name: leader_fix_origin,               type: sensor_msgs/NavSatFix}
   leader_height: 5.0   # leader 高度
   circle_center: [10.0, 0.0]   # leader 圆轨迹中心
   circle_radius: 10.0   # leader 圆轨迹半径

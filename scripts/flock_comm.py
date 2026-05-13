@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import rospy
-from geometry_msgs.msg import PoseStamped, TwistStamped, GeoPointStamped
+from geometry_msgs.msg import PoseStamped, TwistStamped
 from mavros_msgs.msg import State, RCIn
 from nav_msgs.msg import Odometry
+from geographic_msgs.msg import GeoPointStamped
 from sensor_msgs.msg import NavSatFix, TimeReference
 from std_msgs.msg import String
 import numpy as np
@@ -18,11 +19,15 @@ class FlockComm:
         self.own_odom = Odometry()
         self.own_pose = PoseStamped()
         self.own_vel = TwistStamped()
+        self.own_time_ref = TimeReference()
         self.offb_submode = String(data="hover")
         self.leader_rcin = RCIn()
         
         self.leader_pos_history = []
         self.origin_set = False
+        
+        # 时钟同步偏差 (Bias = System_Time - GPS_Time)
+        self.own_bias = rospy.Duration(0)
 
         # 初始化发布器
         self.init_publishers()
@@ -35,12 +40,13 @@ class FlockComm:
         self.set_origin_pub = rospy.Publisher("/mavros/global_position/set_gp_origin", GeoPointStamped, queue_size=10)
         # 如果是 Leader，还需要发布原点给其他人
         if self.cfg.own_name == self.cfg.leader_name:
-            self.leader_origin_pub = rospy.Publisher("/leader_gp_origin", NavSatFix, queue_size=10)
+            self.leader_fix_origin_pub = rospy.Publisher("/leader_fix_origin", NavSatFix, queue_size=10)
 
     def init_subscribers(self):
         # 本机基础状态
         rospy.Subscriber("/mavros/state", State, self.own_state_cb)
         rospy.Subscriber("/mavros/local_position/odom", Odometry, self.own_odom_cb)
+        rospy.Subscriber("/mavros/time_reference", TimeReference, self.own_time_ref_cb)
         
         # 子模式订阅
         rospy.Subscriber("/offb_submode", String, self.offb_submode_cb)
@@ -64,20 +70,29 @@ class FlockComm:
                 rospy.Subscriber(t_name, Odometry, self.other_odom_cb, other_name)
             elif 'State' in t_type:
                 rospy.Subscriber(t_name, State, self.other_state_cb, other_name)
+            elif 'TimeReference' in t_type:
+                rospy.Subscriber(t_name, TimeReference, self.other_time_ref_cb, other_name)
 
     def subscribe_leader_special_topics(self):
         prefix = ensure_global(self.cfg.leader_name)
         # 订阅 Leader 的 RCIn (用于同步切换模式)
         rospy.Subscriber(prefix + "/mavros/rc/in", RCIn, self.leader_rcin_cb)
         # 订阅 Leader 的原点
-        rospy.Subscriber("/leader_gp_origin", NavSatFix, self.leader_gp_origin_cb)
+        rospy.Subscriber("/leader_fix_origin", NavSatFix, self.leader_fix_origin_cb)
 
     # --- Callbacks ---
     def own_state_cb(self, msg): self.own_state = msg
     def own_odom_cb(self, msg):
         self.own_odom = msg
+        self.own_pose.header = msg.header
         self.own_pose.pose = msg.pose.pose
+        self.own_vel.header = msg.header
         self.own_vel.twist = msg.twist.twist
+    
+    def own_time_ref_cb(self, msg):
+        self.own_time_ref = msg
+        # 计算本机系统时钟与 GPS 时间的偏差
+        self.own_bias = msg.header.stamp - msg.time_reference
     
     def offb_submode_cb(self, msg): self.offb_submode = msg
     
@@ -87,11 +102,23 @@ class FlockComm:
 
     def other_odom_cb(self, msg, name):
         if name not in self.drones_data: self.drones_data[name] = {}
+        
+        # 修正时间戳：将他机系统时间转换成本机系统时间
+        # 公式：T_own = T_other - Bias_other + Bias_own
+        if 'bias' in self.drones_data[name]:
+            msg.header.stamp = msg.header.stamp - self.drones_data[name]['bias'] + self.own_bias
+            
         self.drones_data[name]['odom'] = msg
-        if name == self.cfg.leader_name:
-            self.leader_pos_history.append((rospy.Time.now().to_sec(), msg.pose.pose.position))
-            if len(self.leader_pos_history) > self.cfg.history_max_size:
-                self.leader_pos_history.pop(0)
+        # if name == self.cfg.leader_name:
+        #     self.leader_pos_history.append((rospy.Time.now().to_sec(), msg.pose.pose.position))
+        #     if len(self.leader_pos_history) > self.cfg.history_max_size:
+        #         self.leader_pos_history.pop(0)
+
+    def other_time_ref_cb(self, msg, name):
+        if name not in self.drones_data: self.drones_data[name] = {}
+        self.drones_data[name]['time_reference'] = msg
+        # 计算该他机系统时钟与 GPS 时间的偏差
+        self.drones_data[name]['bias'] = msg.header.stamp - msg.time_ref
 
     def leader_rcin_cb(self, msg):
         self.leader_rcin = msg
@@ -106,9 +133,9 @@ class FlockComm:
             elif val >= 1600:
                 self.offb_submode.data = "navi"
 
-    def leader_gp_origin_cb(self, msg):
+    def leader_fix_origin_cb(self, msg):
         if self.cfg.leader_name not in self.drones_data: self.drones_data[self.cfg.leader_name] = {}
-        self.drones_data[self.cfg.leader_name]['leader_origin'] = msg
+        self.drones_data[self.cfg.leader_name]['leader_fix_origin'] = msg
 
     # --- Origin Sync Logic ---
     def sync_origin(self):
@@ -118,35 +145,39 @@ class FlockComm:
             self._set_follower_origin()
 
     def _set_leader_origin(self):
-        rospy.loginfo("[Comm] Leader waiting for global fix...")
+        rospy.loginfo("[Comm] Leader wait for global fix...")
+        leader_fix = NavSatFix()
+        leader_fix.status.status = -1
         while not rospy.is_shutdown():
             try:
-                fix = rospy.wait_for_message("/mavros/global_position/global", NavSatFix, timeout=5.0)
-                if fix.status.status >= 2:
-                    geo = GeoPointStamped()
-                    geo.position.latitude = fix.latitude
-                    geo.position.longitude = fix.longitude
-                    geo.position.altitude = fix.altitude
-                    self.set_origin_pub.publish(geo)
-                    self.leader_origin_fix = fix
+                leader_fix = rospy.wait_for_message("/mavros/global_position/global", NavSatFix, timeout=5.0)
+                if leader_fix.status.status >= 2:
+                    leader_gp_origin = GeoPointStamped()
+                    leader_gp_origin.position.latitude = leader_fix.latitude
+                    leader_gp_origin.position.longitude = leader_fix.longitude
+                    leader_gp_origin.position.altitude = leader_fix.altitude
+                    self.set_origin_pub.publish(leader_gp_origin)
+                    self.leader_fix_origin = leader_fix
                     self.origin_set = True
-                    rospy.Timer(rospy.Duration(1.0), lambda e: self.leader_origin_pub.publish(self.leader_origin_fix))
-                    rospy.loginfo("[Comm] Leader origin set and broadcasting.")
+                    rospy.Timer(rospy.Duration(1.0), lambda e: self.leader_fix_origin_pub.publish(self.leader_fix_origin))
+                    rospy.loginfo("[Comm] Leader gp_origin set and fix_origin broadcast.")
                     break
-            except: rospy.logwarn("[Comm] Leader fix unavailable, retrying...")
+            except: rospy.logwarn("[Comm] Leader global unfix, retry...")
             rospy.sleep(1.0)
 
     def _set_follower_origin(self):
-        rospy.loginfo("[Comm] Follower waiting for leader origin...")
+        rospy.loginfo("[Comm] Follower wait for leader fix_origin...")
+        leader_fix = NavSatFix()
+        leader_fix.status.status = -1
         while not rospy.is_shutdown():
-            leader_fix = self.drones_data.get(self.cfg.leader_name, {}).get('leader_origin')
+            leader_fix = self.drones_data.get(self.cfg.leader_name, {}).get('leader_fix_origin')
             if leader_fix and leader_fix.status.status >= 2:
-                geo = GeoPointStamped()
-                geo.position.latitude = leader_fix.latitude
-                geo.position.longitude = leader_fix.longitude
-                geo.position.altitude = leader_fix.altitude
-                self.set_origin_pub.publish(geo)
+                follower_gp_origin = GeoPointStamped()
+                follower_gp_origin.position.latitude = leader_fix.latitude
+                follower_gp_origin.position.longitude = leader_fix.longitude
+                follower_gp_origin.position.altitude = leader_fix.altitude
+                self.set_origin_pub.publish(follower_gp_origin)
                 self.origin_set = True
-                rospy.loginfo("[Comm] Follower origin synchronized with leader.")
+                rospy.loginfo("[Comm] Follower gp_origin sync with leader.")
                 break
             rospy.sleep(1.0)

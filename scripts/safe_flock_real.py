@@ -204,7 +204,7 @@ class SafeFlockController:
         rospy.Subscriber("/offb_submode", String, self.offb_submode_cb)
 
     def subscribe_leader_topics(self):
-        """订阅 leader 的专属话题（rcin 和 leader_gp_origin）"""
+        """订阅 leader 的专属话题（rcin 和 leader_fix_origin）"""
         for topic_cfg in self.leader_topics:
             topic_name = ensure_global(topic_cfg['name'])
             topic_type = topic_cfg['type']
@@ -219,7 +219,7 @@ class SafeFlockController:
             if 'RCIn' in topic_type:
                 rospy.Subscriber(full_topic, RCIn, self.leader_rcin_cb)
             elif 'NavSatFix' in topic_type:
-                rospy.Subscriber(full_topic, NavSatFix, lambda msg, name=self.leader_name: self.leader_gp_origin_cb(msg, name))
+                rospy.Subscriber(full_topic, NavSatFix, lambda msg, name=self.leader_name: self.leader_fix_origin_cb(msg, name))
 
     def subscribe_other_topics(self, other_name):
         """订阅其他无人机的topics"""
@@ -251,9 +251,9 @@ class SafeFlockController:
             self.set_follower_origin()
 
     def set_leader_origin(self):
-        """Leader: 发布自身原点到 leader_gp_origin"""
+        """Leader: 发布自身原点到 leader_fix_origin"""
         global_topic = "/mavros/global_position/global"
-        leader_origin_topic = "/leader_gp_origin"
+        leader_origin_topic = "/leader_fix_origin"
 
         rospy.loginfo("Waiting leader global fix")
         leader_origin_fix = NavSatFix()
@@ -290,15 +290,15 @@ class SafeFlockController:
             self.leader_origin_pub.publish(self.leader_origin_fix)
 
     def set_follower_origin(self):
-        """Follower: 从 leader 订阅 leader_gp_origin 并设置本地原点"""
+        """Follower: 从 leader 订阅 leader_fix_origin 并设置本地原点"""
         rospy.loginfo("Waiting leader origin fix")
         leader_origin_fix = NavSatFix()
         leader_origin_fix.status.status = -1
         while not rospy.is_shutdown() and leader_origin_fix.status.status < 2:
-            if self.leader_name in self.drones_data and 'leader_origin' in self.drones_data[self.leader_name]:
-                leader_origin_fix = self.drones_data[self.leader_name]['leader_origin']
+            if self.leader_name in self.drones_data and 'leader_fix_origin' in self.drones_data[self.leader_name]:
+                leader_origin_fix = self.drones_data[self.leader_name]['leader_fix_origin']
                 if leader_origin_fix.status.status >= 2:
-                    rospy.loginfo("Leader origin received")
+                    rospy.loginfo("Leader fix origin received")
                     break
             rospy.sleep(1.0)
 
@@ -345,10 +345,10 @@ class SafeFlockController:
             self.drones_data[src_name] = {}
         self.drones_data[src_name]['time_ref'] = msg
 
-    def leader_gp_origin_cb(self, msg, src_name):
+    def leader_fix_origin_cb(self, msg, src_name):
         if src_name not in self.drones_data:
             self.drones_data[src_name] = {}
-        self.drones_data[src_name]['leader_origin'] = msg
+        self.drones_data[src_name]['leader_fix_origin'] = msg
 
     def leader_rcin_cb(self, msg):
         """RC输入回调, 用于模式切换"""

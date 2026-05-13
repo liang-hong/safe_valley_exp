@@ -80,22 +80,22 @@ class FlockMath:
 
         return v_sepa
 
-    def predict_leader_position(self, history, current_time):
-        """预测 leader 未来位置"""
-        if not history:
-            return None
+    # def predict_leader_position(self, history, current_time):
+    #     """预测 leader 未来位置"""
+    #     if not history:
+    #         return None
 
-        if len(history) >= 2:
-            t1, pos1 = history[-2]
-            t2, pos2 = history[-1]
-            dt = t2 - t1
-            if dt > 0:
-                vel = np.array([(pos2.x - pos1.x)/dt, (pos2.y - pos1.y)/dt, (pos2.z - pos1.z)/dt])
-                pred_pos = np.array([pos2.x, pos2.y, pos2.z]) + vel * self.cfg.prediction_window
-                return pred_pos
+    #     if len(history) >= 2:
+    #         t1, pos1 = history[-2]
+    #         t2, pos2 = history[-1]
+    #         dt = t2 - t1
+    #         if dt > 0:
+    #             vel = np.array([(pos2.x - pos1.x)/dt, (pos2.y - pos1.y)/dt, (pos2.z - pos1.z)/dt])
+    #             pred_pos = np.array([pos2.x, pos2.y, pos2.z]) + vel * self.cfg.prediction_window
+    #             return pred_pos
         
-        last_pos = history[-1][1]
-        return np.array([last_pos.x, last_pos.y, last_pos.z])
+    #     last_pos = history[-1][1]
+    #     return np.array([last_pos.x, last_pos.y, last_pos.z])
 
     def apply_limits(self, desired_v, current_v):
         """应用速度和加速度限制"""

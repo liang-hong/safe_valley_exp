@@ -40,9 +40,12 @@ class SafeFlockMain:
 
     def run(self):
         rate = rospy.Rate(self.cfg.control_rate)
+        while not self.comm.origin_set and not rospy.is_shutdown(): 
+            rospy.loginfo("[Main] Wait for origin sync...")
+            rate.sleep()
+
         while not rospy.is_shutdown():
             self.check_state_change()
-            
             # 只有在 OFFBOARD 模式下才执行控制
             if self.comm.own_state.mode == "OFFBOARD":
                 submode = self.comm.offb_submode.data
@@ -60,46 +63,58 @@ class SafeFlockMain:
     def execute_hover(self):
         if self.hover_pose is None:
             self.hover_pose = self.comm.own_pose
-        msg = PoseStamped()
-        msg.header.stamp = rospy.Time.now()
-        msg.pose = self.hover_pose.pose
-        self.comm.local_pos_pub.publish(msg)
+        hover_msg = PoseStamped()
+        hover_msg.header.stamp = rospy.Time.now()
+        hover_msg.pose = self.hover_pose.pose
+        self.comm.local_pos_pub.publish(hover_msg)
 
     def execute_formation(self):
         if self.hover_pose is None:
             self.hover_pose = self.comm.own_pose
 
         if self.cfg.own_name == self.cfg.leader_name:
-            self.execute_hover() # Leader 在编队阶段保持悬停
+            # Leader 目标：保持进入模式时的 XY，上升到 leader_height
+            target_p = np.array([
+                self.hover_pose.pose.position.x,
+                self.hover_pose.pose.position.y,
+                self.cfg.leader_height
+            ])
         else:
-            # Follower 向编队位置移动
+            # Follower 目标：跟随 Leader 当前位置并加上编队偏移
             leader_odom = self.comm.drones_data.get(self.cfg.leader_name, {}).get('odom')
             if not leader_odom:
                 self.execute_hover() # 安全回退：数据未准备好时就地悬停
                 return
             
-            target_p = np.array([leader_odom.pose.pose.position.x, 
-                                leader_odom.pose.pose.position.y, 
-                                leader_odom.pose.pose.position.z]) + self.cfg.form_offset
-            
-            current_p = np.array([self.comm.own_pose.pose.position.x,
-                                 self.comm.own_pose.pose.position.y,
-                                 self.comm.own_pose.pose.position.z])
-            
-            p_error = target_p - current_p
-            dist = np.linalg.norm(p_error)
-            
-            if dist < 0.5:
-                # 误差足够小，直接发目标位置
-                desired_p = target_p
-            else:
-                # 距离较远，以 vel_form 匀速靠近
-                desired_p = current_p + (p_error/dist) * (self.cfg.vel_form / self.cfg.control_rate)
+            target_p = np.array([
+                leader_odom.pose.pose.position.x, 
+                leader_odom.pose.pose.position.y, 
+                leader_odom.pose.pose.position.z
+            ]) + self.cfg.form_offset
+        
+        # 统一的移动逻辑：匀速靠近 + 近距离直接发位置
+        current_p = np.array([
+            self.comm.own_pose.pose.position.x,
+            self.comm.own_pose.pose.position.y,
+            self.comm.own_pose.pose.position.z
+        ])
+        
+        p_error = target_p - current_p
+        dist = np.linalg.norm(p_error)
+        
+        if dist < 0.5:
+            # 误差足够小，直接发目标位置
+            desired_p = target_p
+        else:
+            # 距离较远，以 vel_form 匀速靠近
+            desired_p = current_p + (p_error/dist) * (self.cfg.vel_form * self.cfg.dt)
 
-            msg = PoseStamped()
-            msg.header.stamp = rospy.Time.now()
-            msg.pose.position.x, msg.pose.position.y, msg.pose.position.z = desired_p
-            self.comm.local_pos_pub.publish(msg)
+        # 发布位置指令
+        form_msg = PoseStamped()
+        form_msg.header.stamp = rospy.Time.now()
+        form_msg.pose.position.x, form_msg.pose.position.y, form_msg.pose.position.z = desired_p
+        form_msg.pose.orientation = self.hover_pose.pose.orientation
+        self.comm.local_pos_pub.publish(form_msg)
 
     def execute_navigation(self):
         if self.hover_pose is None:
@@ -109,32 +124,36 @@ class SafeFlockMain:
             # Leader 沿圆轨迹飞行
             if self.leader_start_time is None: self.leader_start_time = rospy.Time.now()
             target_p = self.math.get_leader_circle_position(self.leader_start_time, rospy.Time.now())
-            msg = PoseStamped()
-            msg.header.stamp = rospy.Time.now()
-            msg.pose.position.x, msg.pose.position.y, msg.pose.position.z = target_p
-            self.comm.local_pos_pub.publish(msg)
+            navi_msg = PoseStamped()
+            navi_msg.header.stamp = rospy.Time.now()
+            navi_msg.pose.position.x, navi_msg.pose.position.y, navi_msg.pose.position.z = target_p
+            self.comm.local_pos_pub.publish(navi_msg)
         else:
             # Follower 基于集群算法跟随
-            own_pos = np.array([self.comm.own_pose.pose.position.x, 
-                               self.comm.own_pose.pose.position.y, 
-                               self.comm.own_pose.pose.position.z])
-            own_vel = np.array([self.comm.own_vel.twist.linear.x, 
-                               self.comm.own_vel.twist.linear.y, 
-                               self.comm.own_vel.twist.linear.z])
+            own_pos = np.array([
+                self.comm.own_pose.pose.position.x, 
+                self.comm.own_pose.pose.position.y, 
+                self.comm.own_pose.pose.position.z
+            ])
+            own_vel = np.array([
+                self.comm.own_vel.twist.linear.x, 
+                self.comm.own_vel.twist.linear.y, 
+                self.comm.own_vel.twist.linear.z
+            ])
             
             # 计算四层分量
             v_cohe = self.math.cohe_control(own_pos, self.comm.drones_data)
             v_align = self.math.align_control(own_vel, self.comm.drones_data)
             v_sepa = self.math.sepa_control(own_pos, self.comm.drones_data, self.cfg.obstacles)
             
-            # Follower 跟随预测的 Leader 位置
-            pred_leader = self.math.predict_leader_position(self.comm.leader_pos_history, rospy.Time.now())
-            if pred_leader is not None:
-                v_flock = (pred_leader + self.cfg.form_offset - own_pos) * 0.5
-            else:
-                # 如果预测失败（如 Leader 数据丢失），退回到悬停保护逻辑
-                self.execute_hover()
-                return
+            # # Follower 跟随预测的 Leader 位置
+            # pred_leader = self.math.predict_leader_position(self.comm.leader_pos_history, rospy.Time.now())
+            # if pred_leader is not None:
+            #     v_flock = (pred_leader + self.cfg.form_offset - own_pos) * 0.5
+            # else:
+            #     # 如果预测失败（如 Leader 数据丢失），退回到悬停保护逻辑
+            #     self.execute_hover()
+            #     return
             
             # 综合速度
             desired_v = v_cohe + v_align + v_sepa + v_flock
