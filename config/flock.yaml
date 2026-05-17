@@ -4,14 +4,13 @@ control:
 
   # 凝聚参数
   r_safe: 0.5           # 安全半径
-  r_pack: 2.1           # 堆积半径因子
-  phi_sc: 0.523         # pi/6
+  r_pack_gain: 2.1      # 堆积半径因子 (r_pack = r_pack_gain * r_safe)
+  phi_sc: 0.52359877559 # 空间利用率 (pi/6)
   p_cohe: 1.5           # 凝聚增益
 
   # 对齐参数
   a_max: 5.0            # 最大加速度
   v_max: 1.5            # 最大速度
-  dv_max: 0.167         # a_max / control_rate
   r_align: 10.0         # 对齐有效半径
   p_align: 0.6           # 对齐增益
 
@@ -31,7 +30,7 @@ control:
   vel_form: 1.0          # 编队形成速度
   kp_form: 0.5          # 编队位置P增益
   kd_form: 0.1          # 编队位置D增益
-  min_height: 2.0        # 最小飞行高度
+  min_height: 1.0        # 最小飞行高度
 
 leader:
   name: "UAV6"

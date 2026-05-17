@@ -92,7 +92,7 @@ class FlockComm:
     def own_time_ref_cb(self, msg):
         self.own_time_ref = msg
         # 计算本机系统时钟与 GPS 时间的偏差
-        self.own_bias = msg.header.stamp - msg.time_reference
+        self.own_bias = msg.header.stamp - msg.time_ref
     
     def offb_submode_cb(self, msg): self.offb_submode = msg
     

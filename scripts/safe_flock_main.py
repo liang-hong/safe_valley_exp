@@ -130,6 +130,23 @@ class SafeFlockMain:
             self.comm.local_pos_pub.publish(navi_msg)
         else:
             # Follower 基于集群算法跟随
+            leader_data = self.comm.drones_data.get(self.cfg.leader_name)
+            if not leader_data or 'odom' not in leader_data:
+                self.execute_hover()
+                return
+            
+            leader_odom = leader_data['odom']
+            leader_pos = np.array([
+                leader_odom.pose.pose.position.x,
+                leader_odom.pose.pose.position.y,
+                leader_odom.pose.pose.position.z
+            ])
+            leader_vel = np.array([
+                leader_odom.twist.twist.linear.x,
+                leader_odom.twist.twist.linear.y,
+                leader_odom.twist.twist.linear.z
+            ])
+
             own_pos = np.array([
                 self.comm.own_pose.pose.position.x, 
                 self.comm.own_pose.pose.position.y, 
@@ -140,20 +157,14 @@ class SafeFlockMain:
                 self.comm.own_vel.twist.linear.y, 
                 self.comm.own_vel.twist.linear.z
             ])
+            own_ori = self.comm.own_pose.pose.orientation
             
             # 计算四层分量
-            v_cohe = self.math.cohe_control(own_pos, self.comm.drones_data)
-            v_align = self.math.align_control(own_vel, self.comm.drones_data)
-            v_sepa = self.math.sepa_control(own_pos, self.comm.drones_data, self.cfg.obstacles)
-            
-            # # Follower 跟随预测的 Leader 位置
-            # pred_leader = self.math.predict_leader_position(self.comm.leader_pos_history, rospy.Time.now())
-            # if pred_leader is not None:
-            #     v_flock = (pred_leader + self.cfg.form_offset - own_pos) * 0.5
-            # else:
-            #     # 如果预测失败（如 Leader 数据丢失），退回到悬停保护逻辑
-            #     self.execute_hover()
-            #     return
+            neighbors = self.cfg.topology.get(self.cfg.own_name, [])
+            v_cohe = self.math.cohe_control(own_pos, leader_pos)
+            v_align = self.math.align_control(own_pos, own_vel, self.comm.drones_data, neighbors)
+            v_sepa = self.math.sepa_control(own_pos, own_vel, own_ori, self.comm.drones_data, self.cfg.obstacles, self.cfg.leader_name)
+            v_flock = self.math.flock_control(own_pos, leader_pos, leader_vel)
             
             # 综合速度
             desired_v = v_cohe + v_align + v_sepa + v_flock
