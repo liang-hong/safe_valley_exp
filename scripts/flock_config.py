@@ -12,18 +12,21 @@ class FlockConfig:
         self.load_config()
 
     def determine_own_name(self, own_name_input):
+        # 优先顺序：1. 构造函数直接传入 > 2. roslaunch 参数 (~own_name) > 3. 物理主机名 (hostname)
         if own_name_input is not None:
             name = own_name_input.strip('/')
         else:
-            hostname = socket.gethostname()
-            if "UAV" in hostname and any(c.isdigit() for c in hostname):
-                name = hostname.strip('/')
+            # 尝试从 ROS 参数服务器获取（通常由 launch 文件传入）
+            own_name_param = rospy.get_param('~own_name', None)
+            if own_name_param is not None:
+                name = own_name_param.strip('/')
             else:
-                own_name_param = rospy.get_param('~own_name', None)
-                if own_name_param is not None:
-                    name = own_name_param.strip('/')
+                # 最后尝试使用物理主机名
+                hostname = socket.gethostname()
+                if "UAV" in hostname and any(c.isdigit() for c in hostname):
+                    name = hostname.strip('/')
                 else:
-                    rospy.logerr(f"own_name unresolved: hostname '{hostname}'")
+                    rospy.logerr(f"own_name unresolved: hostname '{hostname}' and no ~own_name param")
                     raise RuntimeError("own_name not resolved")
         rospy.loginfo(f"[Config] Own UAV name: {name}")
         return name
