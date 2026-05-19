@@ -1,5 +1,7 @@
 # Safe Valley 实验功能包 (safe_valley_exp)
 
+中文版 | [English](README.md)
+
 这是一个基于模块化设计的 ROS 集群无人机控制框架，具备分布式通信、时空一致性同步以及高精度集群控制算法。
 
 ## 项目概述

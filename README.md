@@ -1,5 +1,7 @@
 # Safe Valley Experiment (safe_valley_exp)
 
+[中文版](README_zh.md) | English
+
 A modularized ROS framework for swarm drone control, featuring decentralized communication, time/origin synchronization, and high-fidelity flocking algorithms.
 
 ## Project Overview
