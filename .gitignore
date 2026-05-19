@@ -29,3 +29,4 @@ offb_uav_2.py
 safe_flock_01.py
 safe_flock2_011.py
 worlds/
+mavros_posix_sitl.launch

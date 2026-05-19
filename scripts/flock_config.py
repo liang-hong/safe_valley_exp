@@ -13,12 +13,12 @@ class FlockConfig:
 
     def determine_own_name(self, own_name_input):
         # 优先顺序：1. 构造函数直接传入 > 2. roslaunch 参数 (~own_name) > 3. 物理主机名 (hostname)
-        if own_name_input is not None:
+        if own_name_input:
             name = own_name_input.strip('/')
         else:
             # 尝试从 ROS 参数服务器获取（通常由 launch 文件传入）
             own_name_param = rospy.get_param('~own_name', None)
-            if own_name_param is not None:
+            if own_name_param:
                 name = own_name_param.strip('/')
             else:
                 # 最后尝试使用物理主机名
@@ -90,6 +90,7 @@ class FlockConfig:
         self.kp_form = self.control_params.get('kp_form', 0.5)
         self.kd_form = self.control_params.get('kd_form', 0.1)
         self.min_height = self.control_params.get('min_height', 1.0)
+        self.min_gps_status = self.control_params.get('min_gps_status', 0)
 
         # 本机编队偏移
         if self.own_name in self.init_positions:

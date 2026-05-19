@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
 import rospy
+import os
+import sys
+
+# 解决在某些环境下无法找到同目录下模块的问题
+script_dir = os.path.dirname(os.path.realpath(__file__))
+if script_dir not in sys.path:
+    sys.path.insert(0, script_dir) # 使用 insert(0, ...) 确保优先加载源码目录而非 devel 空间的 relay 脚本
+
 import numpy as np
 from geometry_msgs.msg import PoseStamped, TwistStamped
 from flock_config import FlockConfig

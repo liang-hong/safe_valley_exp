@@ -151,7 +151,8 @@ class FlockComm:
         while not rospy.is_shutdown():
             try:
                 leader_fix = rospy.wait_for_message("/mavros/global_position/global", NavSatFix, timeout=5.0)
-                if leader_fix.status.status >= 2:
+                # 增加状态提示：-1=No Fix, 0=Fix, 1=SBAS, 2=GBAS(RTK)
+                if leader_fix.status.status >= self.cfg.min_gps_status:
                     leader_gp_origin = GeoPointStamped()
                     leader_gp_origin.position.latitude = leader_fix.latitude
                     leader_gp_origin.position.longitude = leader_fix.longitude
@@ -160,24 +161,30 @@ class FlockComm:
                     self.leader_fix_origin = leader_fix
                     self.origin_set = True
                     rospy.Timer(rospy.Duration(1.0), lambda e: self.leader_fix_origin_pub.publish(self.leader_fix_origin))
-                    rospy.loginfo("[Comm] Leader gp_origin set and fix_origin broadcast.")
+                    rospy.loginfo(f"[Comm] Leader gp_origin set (status: {leader_fix.status.status}) and fix_origin broadcast.")
                     break
-            except: rospy.logwarn("[Comm] Leader global unfix, retry...")
+                else:
+                    rospy.logwarn(f"[Comm] GPS status is {leader_fix.status.status}, waiting for >= {self.cfg.min_gps_status}...")
+            except Exception as e:
+                rospy.logwarn(f"[Comm] Leader global unfix or timeout, retry... Error: {e}")
             rospy.sleep(1.0)
 
     def _set_follower_origin(self):
-        rospy.loginfo("[Comm] Follower wait for leader fix_origin...")
+        rospy.loginfo(f"[Comm] Follower wait for leader fix_origin (required >= {self.cfg.min_gps_status})...")
         leader_fix = NavSatFix()
         leader_fix.status.status = -1
         while not rospy.is_shutdown():
             leader_fix = self.drones_data.get(self.cfg.leader_name, {}).get('leader_fix_origin')
-            if leader_fix and leader_fix.status.status >= 2:
+            if leader_fix and leader_fix.status.status >= self.cfg.min_gps_status:
                 follower_gp_origin = GeoPointStamped()
                 follower_gp_origin.position.latitude = leader_fix.latitude
                 follower_gp_origin.position.longitude = leader_fix.longitude
                 follower_gp_origin.position.altitude = leader_fix.altitude
                 self.set_origin_pub.publish(follower_gp_origin)
                 self.origin_set = True
-                rospy.loginfo("[Comm] Follower gp_origin sync with leader.")
+                rospy.loginfo(f"[Comm] Follower gp_origin sync with leader (status: {leader_fix.status.status}).")
                 break
+            else:
+                curr_status = leader_fix.status.status if leader_fix else "None"
+                rospy.logwarn(f"[Comm] Leader GPS status is {curr_status}, waiting for >= {self.cfg.min_gps_status}...")
             rospy.sleep(1.0)

@@ -1,7 +1,0 @@
-<launch>
-  <node pkg="safe_valley_exp" type="safe_flock_real.py" name="safe_flock_real" output="screen">
-    <rosparam file="$(find safe_valley_exp)/config/flock.yaml" command="load" />
-    <rosparam file="$(find safe_valley_exp)/config/obstacles.yaml" command="load" />
-    <!-- <param name="own_name" value="UAV6" /> -->
-  </node>
-</launch>

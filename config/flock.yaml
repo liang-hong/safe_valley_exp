@@ -32,6 +32,9 @@ control:
   kd_form: 0.1          # 编队位置D增益
   min_height: 1.0        # 最小飞行高度
 
+  # 安全校验参数
+  min_gps_status: 0     # 最小 GPS 状态要求: -1=无固定, 0=普通固定, 1=SBAS, 2=RTK 固定 (仿真建议0, 实机建议2)
+
 leader:
   name: "UAV6"
   submode_channel: 6   # 子模式切换通道 1-based 通道号 (6对应RC通道6)

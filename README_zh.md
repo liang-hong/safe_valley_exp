@@ -33,18 +33,66 @@ catkin_make --pkg safe_valley_exp
 - `leader`: 设置 Leader 名称、轨迹参数（圆心、半径、速度）及 RC 通道映射。
 - `topology`: 定义集群的邻居拓扑关系（用于对齐算法）。
 
-## 运行方式
-### 实机部署
+## 运行方式 (仿真环境)
+
+本功能包支持**多 ROS Master 隔离仿真**，这能最真实地模拟实机部署环境。每台无人机运行在独立的 ROS 端口上，通过 `swarm_topology_bridge` (ZeroMQ) 进行跨 Master 通信。
+
+### 1. 基础环境配置 (每个终端均需执行)
+在开启任何仿真终端前，请确保已加载 ROS 和 PX4 的路径：
 ```bash
-roslaunch safe_valley_exp safe_flock.launch own_name:=UAV1
-```
-### 仿真测试 (多 Master 模式)
-配合 `swarm_topology_bridge` 功能包，支持单机隔离运行多台无人机节点：
-```bash
-roslaunch safe_valley_exp test_sim_swarm.launch
+source /opt/ros/noetic/setup.bash
+source ~/catkin_ws/devel/setup.bash
+# 配置 PX4 路径 (请根据实际路径修改)
+export PX4_DIR=~/PX4_Firmware
+source $PX4_DIR/Tools/setup_gazebo.bash $PX4_DIR $PX4_DIR/build/px4_sitl_default
+export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:$PX4_DIR:$PX4_DIR/Tools/sitl_gazebo
 ```
 
-## 算法扩展指南
+### 2. 启动 UAV6 (Leader)
+**终端 1: 启动仿真核心 (PX4 + MAVROS + Gazebo)**
+```bash
+export ROS_MASTER_URI=http://localhost:11311
+export ROS_HOSTNAME=localhost
+# 使用 ID 0，对应端口 24540 (发送) / 34580 (接收)   
+roslaunch px4 mavros_posix_sitl.launch x:=0 y:=0 z:=0.5 fcu_url:=udp://:24540@localhost:34580 gui:=true interactive:=true
+```
+*等待 PX4 提示 `EKF alignment complete` 且 Gazebo 窗口弹出。*
+
+**终端 2: 启动算法与通信桥接**
+```bash
+export ROS_MASTER_URI=http://localhost:11311
+roslaunch safe_valley_exp safe_flock_sim.launch uav_name:=UAV6
+```
+
+### 3. 启动 UAV7 (Follower)
+**终端 3: 启动 Follower 仿真核心**
+```bash
+export ROS_MASTER_URI=http://localhost:11312
+export ROS_HOSTNAME=localhost
+export GAZEBO_MASTER_URI=http://localhost:11345  # 必须连接到 UAV6 开启的 Gazebo Server
+# 使用 ID 1，自动偏移端口至 24541 / 34581
+roslaunch px4 single_vehicle_spawn_sdf.launch x:=1 y:=0 z:=0.5 ID:=1 vehicle:=iris sdf:=iris interactive:=true &
+sleep 2
+roslaunch mavros px4.launch fcu_url:=udp://:24541@localhost:34581
+```
+
+**终端 4: 启动算法与通信桥接**
+```bash
+export ROS_MASTER_URI=http://localhost:11312
+roslaunch safe_valley_exp safe_flock_sim.launch uav_name:=UAV7
+```
+
+---
+
+## 运行方式 (实机部署)
+在真实的机载电脑上，只需通过 `mavros.launch` 连接到飞控后运行：
+```bash
+source ~/catkin_ws/devel/setup.bash
+# 程序会自动识别 hostname (如主机名为 UAV6，则自动以 UAV6 身份运行)
+roslaunch safe_valley_exp safe_flock_real.launch
+```
+
+---
 若需实现新算法：
 1. 在 `flock.yaml` 中添加所需参数。
 2. 在 `flock_config.py` 中补充参数加载代码。
