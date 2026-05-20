@@ -2,6 +2,7 @@
 import rospy
 import os
 import sys
+import copy
 
 # 解决在某些环境下无法找到同目录下模块的问题
 script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -29,8 +30,8 @@ class SafeFlockMain:
         self.comm.sync_origin()
         
         # 4. 状态变量
-        self.hover_pose = None
-        self.leader_start_time = None
+        self.submode_start_pose = None
+        self.submode_start_time = None
         self._last_mode = ""
         self._last_submode = ""
         
@@ -42,7 +43,7 @@ class SafeFlockMain:
         curr_submode = self.comm.offb_submode.data
         if curr_mode != self._last_mode or curr_submode != self._last_submode:
             rospy.loginfo(f"State: {curr_mode} | Submode: {curr_submode}")
-            self.hover_pose = None # 切换模式时重置悬停点
+            self.submode_start_pose = None # 切换模式时重置起始点
         self._last_mode = curr_mode
         self._last_submode = curr_submode
 
@@ -69,22 +70,24 @@ class SafeFlockMain:
             rate.sleep()
 
     def execute_hover(self):
-        if self.hover_pose is None:
-            self.hover_pose = self.comm.own_pose
+        if self.submode_start_pose is None:
+            self.submode_start_pose = copy.deepcopy(self.comm.own_pose)
+            self.submode_start_time = rospy.Time.now()
         hover_msg = PoseStamped()
         hover_msg.header.stamp = rospy.Time.now()
-        hover_msg.pose = self.hover_pose.pose
+        hover_msg.pose = self.submode_start_pose.pose
         self.comm.local_pos_pub.publish(hover_msg)
 
     def execute_formation(self):
-        if self.hover_pose is None:
-            self.hover_pose = self.comm.own_pose
+        if self.submode_start_pose is None:
+            self.submode_start_pose = copy.deepcopy(self.comm.own_pose)
+            self.submode_start_time = rospy.Time.now()
 
         if self.cfg.own_name == self.cfg.leader_name:
             # Leader 目标：保持进入模式时的 XY，上升到 leader_height
             target_p = np.array([
-                self.hover_pose.pose.position.x,
-                self.hover_pose.pose.position.y,
+                self.submode_start_pose.pose.position.x,
+                self.submode_start_pose.pose.position.y,
                 self.cfg.leader_height
             ])
         else:
@@ -101,40 +104,57 @@ class SafeFlockMain:
             ]) + self.cfg.form_offset
         
         # 统一的移动逻辑：匀速靠近 + 近距离直接发位置
+        start_p = np.array([
+            self.submode_start_pose.pose.position.x,
+            self.submode_start_pose.pose.position.y,
+            self.submode_start_pose.pose.position.z
+        ])
         current_p = np.array([
             self.comm.own_pose.pose.position.x,
             self.comm.own_pose.pose.position.y,
             self.comm.own_pose.pose.position.z
         ])
         
-        p_error = target_p - current_p
-        dist = np.linalg.norm(p_error)
+        dist_curr = np.linalg.norm(target_p - current_p)
         
-        if dist < 0.5:
+        if dist_curr < 0.5:
             # 误差足够小，直接发目标位置
             desired_p = target_p
         else:
             # 距离较远，以 vel_form 匀速靠近
-            desired_p = current_p + (p_error/dist) * (self.cfg.vel_form * self.cfg.dt)
+            p_error0 = target_p - start_p
+            dist0 = np.linalg.norm(p_error0)
+            if dist0 < 1e-3:
+                desired_p = target_p
+            else:
+                elapsed = (rospy.Time.now() - self.submode_start_time).to_sec()
+                travel = min(self.cfg.vel_form * elapsed, dist0)
+                desired_p = start_p + (p_error0 / dist0) * travel
 
         # 发布位置指令
         form_msg = PoseStamped()
         form_msg.header.stamp = rospy.Time.now()
         form_msg.pose.position.x, form_msg.pose.position.y, form_msg.pose.position.z = desired_p
-        form_msg.pose.orientation = self.hover_pose.pose.orientation
+        form_msg.pose.orientation = self.submode_start_pose.pose.orientation
         self.comm.local_pos_pub.publish(form_msg)
 
     def execute_navigation(self):
-        if self.hover_pose is None:
-            self.hover_pose = self.comm.own_pose
+        if self.submode_start_pose is None:
+            self.submode_start_pose = copy.deepcopy(self.comm.own_pose)
+            self.submode_start_time = rospy.Time.now()
 
         if self.cfg.own_name == self.cfg.leader_name:
             # Leader 沿圆轨迹飞行
-            if self.leader_start_time is None: self.leader_start_time = rospy.Time.now()
-            target_p = self.math.get_leader_circle_position(self.leader_start_time, rospy.Time.now())
+            start_p = np.array([
+                self.submode_start_pose.pose.position.x,
+                self.submode_start_pose.pose.position.y,
+                self.cfg.leader_height
+            ])
+            circle_p = self.math.get_leader_circle_position(self.submode_start_time, rospy.Time.now())
             navi_msg = PoseStamped()
             navi_msg.header.stamp = rospy.Time.now()
-            navi_msg.pose.position.x, navi_msg.pose.position.y, navi_msg.pose.position.z = target_p
+            navi_msg.pose.position.x, navi_msg.pose.position.y, navi_msg.pose.position.z = start_p + circle_p
+            navi_msg.pose.orientation = self.submode_start_pose.pose.orientation
             self.comm.local_pos_pub.publish(navi_msg)
         else:
             # Follower 基于集群算法跟随
