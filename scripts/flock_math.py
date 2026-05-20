@@ -12,11 +12,11 @@ class FlockMath:
         angular_vel = self.cfg.circle_speed / self.cfg.circle_radius
 
         direction = -1 if self.cfg.clockwise else 1
-        angle = (direction * angular_vel * elapsed) % (2 * math.pi)
+        angle = (direction * angular_vel * elapsed + math.pi) % (2 * math.pi)
 
         x = self.cfg.circle_center[0] + self.cfg.circle_radius * math.cos(angle)
         y = self.cfg.circle_center[1] + self.cfg.circle_radius * math.sin(angle)
-        z = self.cfg.leader_height
+        z = 0.0
 
         return np.array([x, y, z])
 

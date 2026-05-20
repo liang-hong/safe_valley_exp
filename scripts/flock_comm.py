@@ -78,7 +78,7 @@ class FlockComm:
         # 订阅 Leader 的 RCIn (用于同步切换模式)
         rospy.Subscriber(prefix + "/mavros/rc/in", RCIn, self.leader_rcin_cb)
         # 订阅 Leader 的原点
-        rospy.Subscriber("/leader_fix_origin", NavSatFix, self.leader_fix_origin_cb)
+        rospy.Subscriber(prefix + "/leader_fix_origin", NavSatFix, self.leader_fix_origin_cb)
 
     # --- Callbacks ---
     def own_state_cb(self, msg): self.own_state = msg
