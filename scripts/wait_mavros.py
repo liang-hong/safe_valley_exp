@@ -29,7 +29,7 @@ def wait_for_mavros_ready(timeout_s: float) -> bool:
 
 
 def main():
-    rospy.init_node("safe_flock_wait_mavros", anonymous=True)
+    rospy.init_node("wait_mavros", anonymous=True)
 
     timeout_s = float(rospy.get_param("~timeout", 60.0))
     ok = wait_for_mavros_ready(timeout_s)

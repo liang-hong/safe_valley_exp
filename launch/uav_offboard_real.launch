@@ -6,6 +6,6 @@
 
   <include file="$(find safe_valley_exp)/launch/safe_flock_real.launch">
     <arg name="uav_name" value="$(arg uav_name)"/>
-    <arg name="safe_flock_exec" value="safe_flock_wait_mavros.py"/>
+    <arg name="safe_flock_exec" value="wait_mavros.py"/>
   </include>
 </launch>
