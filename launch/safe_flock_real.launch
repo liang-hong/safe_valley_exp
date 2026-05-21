@@ -3,9 +3,10 @@
   <!-- 实机启动示例：roslaunch safe_valley_exp safe_flock_real.launch -->
   
   <arg name="uav_name" default="" />
+  <arg name="safe_flock_exec" default="safe_flock_main.py" />
 
   <!-- 1. 算法核心节点 -->
-  <node pkg="safe_valley_exp" type="safe_flock_main.py" name="safe_flock" output="screen">
+  <node pkg="safe_valley_exp" type="$(arg safe_flock_exec)" name="safe_flock" output="screen">
     <!-- 加载算法配置 -->
     <rosparam file="$(find safe_valley_exp)/config/flock.yaml" command="load" />
     <rosparam file="$(find safe_valley_exp)/config/obstacles.yaml" command="load" />

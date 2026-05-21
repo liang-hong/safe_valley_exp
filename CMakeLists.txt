@@ -20,6 +20,7 @@ include_directories(
 
 catkin_install_python(PROGRAMS
   scripts/safe_flock_main.py
+  scripts/safe_flock_wait_mavros.py
   scripts/submode_publisher.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
