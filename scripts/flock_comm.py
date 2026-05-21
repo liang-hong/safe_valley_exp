@@ -33,6 +33,7 @@ class FlockComm:
         self.init_publishers()
         # 初始化订阅器
         self.init_subscribers()
+        rospy.sleep(1)
 
     def init_publishers(self):
         self.local_vel_pub = rospy.Publisher("/mavros/setpoint_velocity/cmd_vel", TwistStamped, queue_size=10)

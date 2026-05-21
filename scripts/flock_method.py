@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import numpy as np
 import math
+import rospy
 
-class FlockMath:
+class FlockMethod:
     def __init__(self, config):
         self.cfg = config
 
@@ -31,6 +32,7 @@ class FlockMath:
         if self.cfg.r_in_floc < dist_xy < self.cfg.r_out_floc:
             gain = ((dist_xy - self.cfg.r_in_floc) / (self.cfg.r_out_floc - self.cfg.r_in_floc))**(0.5)
             v_cohe[0:2] = - self.cfg.p_cohe * gain * r_i0_xy / dist_xy
+            rospy.loginfo(f"cohe_control enable")
             
         return v_cohe
 
@@ -45,13 +47,14 @@ class FlockMath:
         v_z = - self.cfg.kp_flock_z * z_error
         v_z = np.clip(v_z, -self.cfg.max_climb_vel, self.cfg.max_climb_vel)
         
-        if dist_xy < self.cfg.r_out_floc:
+        if self.cfg.r_in_floc < dist_xy < self.cfg.r_out_floc:
             # 在有效半径内，匹配 Leader 的水平速度
             v_flock = np.array([
                 leader_vel[0],
                 leader_vel[1],
                 v_z
             ])
+            rospy.loginfo(f"flock_control enable")
         else:
             # 半径外仅保持高度控制
             v_flock = np.array([0.0, 0.0, v_z])
@@ -98,6 +101,7 @@ class FlockMath:
             if v_ij_norm > v_ij_max:
                 gain = (v_ij_norm - v_ij_max) / (2 * self.cfg.v_max - v_ij_max)
                 v_align += - self.cfg.p_align * gain * v_ij / v_ij_norm
+                rospy.loginfo(f"align_control enable for {name}")
         
         return v_align
 
@@ -159,6 +163,7 @@ class FlockMath:
                     perp_norm = np.linalg.norm(perp_vec)
                 
                 v_sepa_quad += self.cfg.p_sepa_quad * np.sqrt((r_free - r_iquad_norm) / r_free_min) * (perp_vec / perp_norm)
+                rospy.loginfo(f"sepa_quad enable for {drone_name}")
 
         # 3. 避开障碍物
         v_sepa_obs = np.array([0.0, 0.0, 0.0])
@@ -190,6 +195,7 @@ class FlockMath:
                     perp_norm = np.linalg.norm(perp_vec)
                 
                 v_sepa_obs += self.cfg.p_sepa_obs * np.sqrt((r_free - r_iobs_norm) / r_free_min) * (perp_vec / perp_norm)
+                rospy.loginfo(f"sepa_obs enable for {obs['id']}")
 
         return v_sepa_quad + v_sepa_obs
 

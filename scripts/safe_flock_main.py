@@ -12,7 +12,7 @@ if script_dir not in sys.path:
 import numpy as np
 from geometry_msgs.msg import PoseStamped, TwistStamped
 from flock_config import FlockConfig
-from flock_math import FlockMath
+from flock_method import FlockMethod
 from flock_comm import FlockComm
 
 class SafeFlockMain:
@@ -22,8 +22,8 @@ class SafeFlockMain:
         # 1. 加载配置
         self.cfg = FlockConfig()
         
-        # 2. 初始化数学库
-        self.math = FlockMath(self.cfg)
+        # 2. 初始化方法库
+        self.method = FlockMethod(self.cfg)
         
         # 3. 初始化通信与原点同步
         self.comm = FlockComm(self.cfg)
@@ -150,7 +150,7 @@ class SafeFlockMain:
                 self.submode_start_pose.pose.position.y,
                 self.cfg.leader_height
             ])
-            circle_p = self.math.get_leader_circle_position(self.submode_start_time, rospy.Time.now())
+            circle_p = self.method.get_leader_circle_position(self.submode_start_time, rospy.Time.now())
             navi_msg = PoseStamped()
             navi_msg.header.stamp = rospy.Time.now()
             navi_msg.pose.position.x, navi_msg.pose.position.y, navi_msg.pose.position.z = start_p + circle_p
@@ -189,15 +189,15 @@ class SafeFlockMain:
             
             # 计算四层分量
             neighbors = self.cfg.topology.get(self.cfg.own_name, [])
-            v_cohe = self.math.cohe_control(own_pos, leader_pos)
-            v_align = self.math.align_control(own_pos, own_vel, self.comm.drones_data, neighbors)
-            v_sepa = self.math.sepa_control(own_pos, own_vel, own_ori, self.comm.drones_data, self.cfg.obstacles, self.cfg.leader_name)
-            v_flock = self.math.flock_control(own_pos, leader_pos, leader_vel)
+            v_cohe = self.method.cohe_control(own_pos, leader_pos)
+            v_align = self.method.align_control(own_pos, own_vel, self.comm.drones_data, neighbors)
+            v_sepa = self.method.sepa_control(own_pos, own_vel, own_ori, self.comm.drones_data, self.cfg.obstacles, self.cfg.leader_name)
+            v_flock = self.method.flock_control(own_pos, leader_pos, leader_vel)
             
             # 综合速度
             desired_v = v_cohe + v_align + v_sepa + v_flock
             # 限制速度与加速度
-            limited_v = self.math.apply_limits(desired_v, own_vel)
+            limited_v = self.method.apply_limits(desired_v, own_vel)
             
             # 发布速度指令
             msg = TwistStamped()
