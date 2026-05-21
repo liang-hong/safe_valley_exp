@@ -1,102 +1,112 @@
-# Safe Valley Experiment (safe_valley_exp)
+# Safe Valley Experiment Package (safe_valley_exp)
 
-[中文版](README_zh.md) | English
+English | [中文版](README_zh.md)
 
-A modularized ROS framework for swarm drone control, featuring decentralized communication, time/origin synchronization, and high-fidelity flocking algorithms.
+This is a modular ROS swarm-drone control framework with distributed communication, spatiotemporal consistency synchronization, and high-precision flocking algorithms.
 
 ## Project Overview
-This package is designed for "zero-configuration" deployment across multiple drones. It decouples the core logic into four distinct modules, allowing for easy algorithm migration and testing in both simulation (SITL) and real-world experiments.
+This package aims for “zero-configuration” migration for multi-UAV deployment. By splitting the core logic into four independent modules, it fully decouples the control state machine, parameter loading, communication layer, and math algorithms, which makes iteration and real-world deployment easier.
 
 ## Modular Architecture
-The codebase is structured into four main components:
-- **`safe_flock_main.py`**: The entry point and master state machine. It manages transitions between `hover`, `formation`, and `navigation` modes.
-- **`flock_config.py`**: Handles identity resolution (UAV name) and parameter loading from YAML. It ensures high priority for `roslaunch` parameters to support multi-master simulation.
-- **`flock_comm.py`**: Manages all ROS subscribers and publishers. Implements GPS-based clock bias correction and Leader-led global origin synchronization.
-- **`flock_math.py`**: The algorithm core. Contains high-fidelity Reynolds flocking (Cohesion, Alignment, Separation) and an elliptical potential field model for dynamic obstacle avoidance.
+Four core modules:
+- **`safe_flock_main.py`**: Entry point and state machine. Manages transitions among `hover`, `form`, and `navi` modes.
+- **`flock_config.py`**: Identity resolution and parameter center. Supports resolving the local UAV ID via `roslaunch` and hostname, and loads all gains from YAML.
+- **`flock_comm.py`**: Communication manager. Implements GPS `TimeReference`-based clock bias correction and Leader-led global origin synchronization.
+- **`flock_method.py`**: Method library. Includes high-precision Reynolds flocking (cohesion, alignment, separation) and a dynamic elliptical potential-field obstacle avoidance model with “side nudge”.
+
+Auxiliary modules:
+- **`submode_publisher.py`**: Submode publisher. Publishes the current submode (e.g. `hover`, `form`, `navi`) to the `/submode` topic for other nodes to subscribe.
+- **`wait_mavros.py`**: MAVROS readiness waiter. Waits for MAVROS connection before the main node starts, ensuring all UAVs can communicate normally.
 
 ## Key Technical Features
-- **Time Consistency**: Automatically corrects system clock jitter by calculating the bias between ROS System Time and GPS `TimeReference`.
-- **Space Alignment**: Synchronizes the local ENU origin across the swarm via the Leader's broadcasted GPS fix.
-- **Safety-First Flocking**: Uses a vertical projection method for Leader following to prevent physical collisions between followers and the leader.
-- **Elliptical Obstacle Avoidance**: A dynamic eccentricity model that adjusts the safety buffer based on velocity, including a "Side Nudge" logic to break collinear deadlocks.
+- **Time consistency**: Computes the bias between system clock and GPS time to correct other-UAV odom timestamps and reduce distributed time jitter.
+- **Space alignment**: The Leader acquires global position and broadcasts it; Followers set `set_gp_origin` accordingly to ensure a shared ENU frame.
+- **Vertical projection collision avoidance**: Treats the Leader as a virtual vertical axis (projection) during flocking to avoid altitude-layer collisions.
+- **Dynamic elliptical obstacle avoidance**: Uses a speed-dependent eccentricity ellipse with “side nudge” logic to break collinear deadlocks.
 
 ## Installation & Build
-This package is compatible with ROS Melodic/Noetic.
+Compatible with ROS Melodic/Noetic.
 ```bash
-# Recommended build tool
+# Recommended: catkin build
 catkin build safe_valley_exp
-# Or use catkin_make
+# Or: catkin_make
 catkin_make --pkg safe_valley_exp
 ```
 
 ## Configuration
-All algorithm gains and swarm topologies are defined in `config/flock.yaml`.
-- `control`: Algorithm constants (r_safe, v_max, gains).
-- `leader`: Leader identity, trajectory parameters, and RC channel mappings.
-- `topology`: Defines the neighborhood relationship for the alignment algorithm.
+All algorithm parameters are defined in `config/flock.yaml`:
+- `control`: safety radius, max speed/accel, and other gains.
+- `leader`: Leader name, trajectory params (center/radius/speed), and RC channel mapping.
+- `topology`: swarm neighborhood topology (used by alignment).
 
 ## Usage (Simulation)
+This package supports **multi ROS master isolated simulation** to mimic “one onboard ROS master per UAV” deployment, and uses QGC to view telemetry for multiple UAVs simultaneously.
 
-This package supports **Multi-ROS Master Isolated Simulation**, which accurately mimics real-world deployment where each drone has its own onboard computer. Communication between masters is handled by `swarm_topology_bridge` (ZeroMQ).
+We recommend a two-layer structure for simulation (**simulation layer + onboard layer**) to minimize commands and coupling:
+- **Simulation layer (1 master)**: runs Gazebo + multiple PX4 SITL instances (multi-UAV). Does not run the algorithm.
+- **Onboard layer (N masters)**: one ROS master per UAV, runs only MAVROS + `swarm_topology_bridge` + `safe_valley_exp`. Connects to the simulation-layer PX4 instance via UDP `fcu_url`.
 
-### 1. Environment Setup (Execute in Every Terminal)
-Ensure ROS and PX4 paths are loaded before starting any simulation terminal:
+### 2. Start the simulation layer (once, headless)
+**Terminal A (simulation master: 11300)**
 ```bash
-source /opt/ros/noetic/setup.bash
-source ~/catkin_ws/devel/setup.bash
-# Configure PX4 path (adjust according to your setup)
-export PX4_DIR=~/PX4_Firmware
-source $PX4_DIR/Tools/setup_gazebo.bash $PX4_DIR $PX4_DIR/build/px4_sitl_default
-export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:$PX4_DIR:$PX4_DIR/Tools/sitl_gazebo
+export ROS_MASTER_URI=http://localhost:11300
+export ROS_HOSTNAME=localhost
+export GAZEBO_MASTER_URI=http://localhost:11345
+roslaunch safe_valley_exp multi_uav_sim.launch
 ```
 
-### 2. Start UAV6 (Leader)
-**Terminal 1: Simulation Core (PX4 + MAVROS + Gazebo)**
+### 3. Start the onboard layer (one master per UAV)
+Ports and system IDs are offset by ID:
+- UAV6 (ID=0): `fcu_url=udp://:24540@localhost:34580`, `tgt_system=1`
+- UAV7 (ID=1): `fcu_url=udp://:24541@localhost:34581`, `tgt_system=2`
+
+**Terminal B1 UAV6 (onboard master: 11311)**
 ```bash
 export ROS_MASTER_URI=http://localhost:11311
 export ROS_HOSTNAME=localhost
-# Uses ID 0, corresponding to ports 14540 (Send) / 14580 (Receive)
-roslaunch px4 mavros_posix_sitl.launch x:=0 y:=0 z:=0.5 fcu_url:=udp://:14540@localhost:14580 gui:=true interactive:=true
-```
-*Wait for PX4 to display `EKF alignment complete` and the Gazebo window to appear.*
-
-**Terminal 2: Algorithm & Bridge**
-```bash
-export ROS_MASTER_URI=http://localhost:11311
-roslaunch safe_valley_exp safe_flock_sim.launch uav_name:=UAV6
+roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV6 tgt_system:=1
 ```
 
-### 3. Start UAV7 (Follower)
-**Terminal 3: Follower Simulation Core**
+**Terminal B2 UAV7 (onboard master: 11312)**
 ```bash
 export ROS_MASTER_URI=http://localhost:11312
 export ROS_HOSTNAME=localhost
-export GAZEBO_MASTER_URI=http://localhost:11345  # Connects to the Gazebo Server started by UAV6
-# Uses ID 1, automatically shifting ports to 14541 / 14581
-roslaunch px4 single_vehicle_spawn_sdf.launch x:=1 y:=0 z:=0.5 ID:=1 vehicle:=iris sdf:=iris interactive:=true &
-sleep 2
-roslaunch mavros px4.launch fcu_url:=udp://:14541@localhost:14581
+roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV7 tgt_system:=2
 ```
 
-**Terminal 4: Algorithm & Bridge**
+**Terminal B3 UAV8 (onboard master: 11313)**
 ```bash
-export ROS_MASTER_URI=http://localhost:11312
-roslaunch safe_valley_exp safe_flock_sim.launch uav_name:=UAV7
+export ROS_MASTER_URI=http://localhost:11313
+export ROS_HOSTNAME=localhost
+roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV8 tgt_system:=3
 ```
+
+**Terminal B4 UAV9 (onboard master: 11314)**
+```bash
+export ROS_MASTER_URI=http://localhost:11314
+export ROS_HOSTNAME=localhost
+roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV9 tgt_system:=4
+```
+
+### 4. QGC Telemetry Notes
+If QGC shows “a second vehicle tab but no position/icon”, it typically means the heartbeat is connected but the PX4 instance is not receiving simulation-generated position data. Check:
+- whether the PX4 instance was started and its model was spawned via `single_vehicle_spawn_xtd.launch`
+- whether `/mavros/state` reports `connected: True`
 
 ---
 
 ## Usage (Real-world Deployment)
-On a real onboard computer, simply connect to the flight controller via MAVROS and run:
+On the real onboard computer, connect to the FCU via MAVROS and run the algorithm:
 ```bash
-source ~/catkin_ws/devel/setup.bash
-# The program automatically identifies the hostname (e.g., if hostname is UAV6, it runs as UAV6)
-roslaunch safe_valley_exp safe_flock_real.launch
+# The program auto-detects hostname (e.g. UAV6) and runs with that identity
+roslaunch safe_valley_exp uav_offboard_real.launch
 ```
 
 ---
-To implement a new algorithm:
-1. Define new parameters in `flock.yaml`.
-2. Update `flock_config.py` to load these parameters.
-3. Implement the mathematical logic as a new method in `flock_math.py`.
-4. Call the new method within the state machine in `safe_flock_main.py`.
+
+To add a new algorithm:
+1. Add the required parameters to `flock.yaml`.
+2. Extend parameter loading in `flock_config.py`.
+3. Implement new math logic in `flock_method.py`.
+4. Call the new function in the main loop of `safe_flock_main.py` and publish the command.
+5. Extend simulated input logic for the new algorithm in `submode_publisher.py`.
