@@ -32,7 +32,7 @@ class FlockMethod:
         if self.cfg.r_in_floc < dist_xy < self.cfg.r_out_floc:
             gain = ((dist_xy - self.cfg.r_in_floc) / (self.cfg.r_out_floc - self.cfg.r_in_floc))**(0.5)
             v_cohe[0:2] = - self.cfg.p_cohe * gain * r_i0_xy / dist_xy
-            rospy.loginfo(f"cohe_control enable")
+            # rospy.loginfo(f"cohe enable, v_cohe: {v_cohe}")
             
         return v_cohe
 
@@ -47,14 +47,14 @@ class FlockMethod:
         v_z = - self.cfg.kp_flock_z * z_error
         v_z = np.clip(v_z, -self.cfg.max_climb_vel, self.cfg.max_climb_vel)
         
-        if self.cfg.r_in_floc < dist_xy < self.cfg.r_out_floc:
+        if dist_xy < self.cfg.r_out_floc:
             # 在有效半径内，匹配 Leader 的水平速度
             v_flock = np.array([
                 leader_vel[0],
                 leader_vel[1],
                 v_z
             ])
-            rospy.loginfo(f"flock_control enable")
+            # rospy.loginfo(f"flock enable, v_flock: {v_flock}")
         else:
             # 半径外仅保持高度控制
             v_flock = np.array([0.0, 0.0, v_z])
@@ -99,9 +99,9 @@ class FlockMethod:
             
             # 如果相对速度超过阈值，产生对齐拉力
             if v_ij_norm > v_ij_max:
+                # rospy.loginfo(f"align enable from {name}")
                 gain = (v_ij_norm - v_ij_max) / (2 * self.cfg.v_max - v_ij_max)
                 v_align += - self.cfg.p_align * gain * v_ij / v_ij_norm
-                rospy.loginfo(f"align_control enable for {name}")
         
         return v_align
 
@@ -147,6 +147,7 @@ class FlockMethod:
             r_free = self.cfg.b * np.sqrt(1 - e_i**2) / (1 - e_i * cos_theta) + r_off
             
             if r_iquad_norm < r_free:
+                rospy.loginfo(f"sepa enable from drone {drone_name}")
                 r_free_min = self.cfg.b * np.sqrt(1 - e_i**2) / (1 + e_i)
                 # 避障受力方向 (垂直于相对方向的逃逸向量)
                 perp_vec = v_i_hat + r_iquad_hat
@@ -163,7 +164,6 @@ class FlockMethod:
                     perp_norm = np.linalg.norm(perp_vec)
                 
                 v_sepa_quad += self.cfg.p_sepa_quad * np.sqrt((r_free - r_iquad_norm) / r_free_min) * (perp_vec / perp_norm)
-                rospy.loginfo(f"sepa_quad enable for {drone_name}")
 
         # 3. 避开障碍物
         v_sepa_obs = np.array([0.0, 0.0, 0.0])
@@ -182,6 +182,7 @@ class FlockMethod:
             r_free = self.cfg.b * np.sqrt(1 - e_i**2) / (1 - e_i * cos_theta) + r_off
             
             if r_iobs_norm < r_free:
+                rospy.loginfo(f"sepa enable from obs {obs['name']}")
                 r_free_min = self.cfg.b * np.sqrt(1 - e_i**2) / (1 + e_i)
                 perp_vec = v_i_hat + r_iobs_hat
                 perp_norm = np.linalg.norm(perp_vec)
@@ -193,9 +194,8 @@ class FlockMethod:
                         side_vec = np.cross(v_i_hat, [1, 0, 0])
                     perp_vec = side_vec
                     perp_norm = np.linalg.norm(perp_vec)
-                
+
                 v_sepa_obs += self.cfg.p_sepa_obs * np.sqrt((r_free - r_iobs_norm) / r_free_min) * (perp_vec / perp_norm)
-                rospy.loginfo(f"sepa_obs enable for {obs['id']}")
 
         return v_sepa_quad + v_sepa_obs
 
