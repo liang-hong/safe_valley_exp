@@ -3,23 +3,23 @@ control:
   rate: 30.0
 
   # 凝聚参数
-  r_safe: 0.5           # 安全半径
+  r_safe: 0.4           # 安全半径
   r_pack_gain: 2.1      # 堆积半径因子 (r_pack = r_pack_gain * r_safe)
   phi_sc: 0.52359877559 # 空间利用率 (pi/6)
-  p_cohe: 1.5           # 凝聚增益
+  p_cohe: 1.0           # 凝聚增益
 
   # 对齐参数
   a_max: 10.0            # 最大加速度
   v_max: 2.0            # 最大速度
   r_align: 5.0         # 对齐有效半径
-  p_align: 0.6           # 对齐增益
+  p_align: 0.3           # 对齐增益
 
   # 分离参数
   b: 1.0                # 半短轴
   r_sen: 5.0            # 感知半径
   e_max: 0.95           # 最大离心率
   p_sepa_quad: 0.3      # 无人机分离增益
-  p_sepa_obs: 0.05     # 障碍分离增益
+  p_sepa_obs: 0.5     # 障碍分离增益
 
   # 跟随参数
   target_height: 2.0  # 目标高度
@@ -42,8 +42,8 @@ leader:
     - {name: mavros/rc/in,                   type: mavros_msgs/RCIn}
     - {name: leader_fix_origin,               type: sensor_msgs/NavSatFix}
   leader_height: 5.0   # leader 高度
-  circle_center: [10.0, 0.0]   # leader 圆轨迹中心
-  circle_radius: 10.0   # leader 圆轨迹半径
+  circle_center: [5.0, 0.0]   # leader 圆轨迹中心
+  circle_radius: 5.0   # leader 圆轨迹半径
   circle_speed: 0.5   # leader 圆轨迹速度
   clockwise: true   # leader 圆轨迹是否顺时针飞行
   hover_on_start: true   # 启动时悬停

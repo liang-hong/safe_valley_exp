@@ -99,7 +99,7 @@ class FlockMethod:
             
             # 如果相对速度超过阈值，产生对齐拉力
             if v_ij_norm > v_ij_max:
-                # rospy.loginfo(f"align enable from {name}")
+                rospy.loginfo(f"align enable from {name}")
                 gain = (v_ij_norm - v_ij_max) / (2 * self.cfg.v_max - v_ij_max)
                 v_align += - self.cfg.p_align * gain * v_ij / v_ij_norm
         
@@ -147,7 +147,9 @@ class FlockMethod:
             r_free = self.cfg.b * np.sqrt(1 - e_i**2) / (1 - e_i * cos_theta) + r_off
             
             if r_iquad_norm < r_free:
-                rospy.loginfo(f"sepa enable from drone {drone_name}")
+                # rospy.loginfo(f"sepa enable from drone {drone_name}")
+                if r_iquad_norm < r_off:
+                    rospy.loginfo(f"crash drone {drone_name}")
                 r_free_min = self.cfg.b * np.sqrt(1 - e_i**2) / (1 + e_i)
                 # 避障受力方向 (垂直于相对方向的逃逸向量)
                 perp_vec = v_i_hat + r_iquad_hat
@@ -174,7 +176,7 @@ class FlockMethod:
             r_iobs_norm = np.linalg.norm(r_iobs)
             if r_iobs_norm > self.cfg.r_sen or r_iobs_norm < 1e-3:
                 continue
-                
+            
             r_iobs_hat = r_iobs / r_iobs_norm
             cos_theta = np.dot(v_i_hat, -r_iobs_hat)
             
@@ -182,7 +184,9 @@ class FlockMethod:
             r_free = self.cfg.b * np.sqrt(1 - e_i**2) / (1 - e_i * cos_theta) + r_off
             
             if r_iobs_norm < r_free:
-                rospy.loginfo(f"sepa enable from obs {obs['name']}")
+                # rospy.loginfo(f"sepa enable from obs {obs['name']}")
+                if r_iobs_norm < r_off:
+                    rospy.loginfo(f"crash obs {obs['name']}")
                 r_free_min = self.cfg.b * np.sqrt(1 - e_i**2) / (1 + e_i)
                 perp_vec = v_i_hat + r_iobs_hat
                 perp_norm = np.linalg.norm(perp_vec)
@@ -222,12 +226,13 @@ class FlockMethod:
         v_norm = np.linalg.norm(desired_v)
         if v_norm > self.cfg.v_max:
             desired_v = desired_v / v_norm * self.cfg.v_max
-
-        # 加速度（速度变化量）限制
-        dv = desired_v - current_v
-        dv_norm = np.linalg.norm(dv)
-        if dv_norm > self.cfg.dv_max:
-            dv = dv / dv_norm * self.cfg.dv_max
-            desired_v = current_v + dv
+            rospy.loginfo(f"v_max limit!")
+        
+        # dv 限制（策略B：先屏蔽，仅保留速度模长限制；需要时可撤销注释恢复）
+        # dv = desired_v - current_v
+        # dv_norm = np.linalg.norm(dv)
+        # if dv_norm > self.cfg.dv_max:
+        #     dv = dv / dv_norm * self.cfg.dv_max
+        #     desired_v = current_v + dv
             
         return desired_v

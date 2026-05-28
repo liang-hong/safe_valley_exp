@@ -196,14 +196,15 @@ class SafeFlockMain:
             
             # 综合速度
             desired_v = v_cohe + v_align + v_sepa + v_flock
-            # 限制速度与加速度
-            # limited_v = self.method.apply_limits(desired_v, own_vel)
+            # 限制速度（策略B：仅做速度模长限制，不限制 dv）
+            limited_v = self.method.apply_limits(desired_v, own_vel)
             
             # 发布速度指令
             msg = TwistStamped()
             msg.header.stamp = rospy.Time.now()
-            msg.twist.linear.x, msg.twist.linear.y, msg.twist.linear.z = desired_v
-            # rospy.loginfo(f"Desired V: {desired_v}")
+            # msg.twist.linear.x, msg.twist.linear.y, msg.twist.linear.z = desired_v
+            msg.twist.linear.x, msg.twist.linear.y, msg.twist.linear.z = limited_v
+            # rospy.loginfo(f"Desired V (limited): {limited_v}")
             self.comm.local_vel_pub.publish(msg)
 
 if __name__ == '__main__':
