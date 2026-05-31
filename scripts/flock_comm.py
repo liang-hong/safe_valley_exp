@@ -127,11 +127,11 @@ class FlockComm:
         ch_idx = self.cfg.submode_channel - 1
         if 0 <= ch_idx < len(self.leader_rcin.channels):
             val = self.leader_rcin.channels[ch_idx]
-            if val < 1200:
+            if val < 1300:
                 self.offb_submode.data = "form"
-            elif 1300 <= val <= 1500:
+            elif 1400 <= val <= 1600:
                 self.offb_submode.data = "hover"
-            elif val >= 1600:
+            elif val >= 1700:
                 self.offb_submode.data = "navi"
 
     def leader_fix_origin_cb(self, msg):
