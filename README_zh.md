@@ -98,7 +98,7 @@ QGC 看到“第二台标签但没有位置/图标”，通常表示心跳已通
 ---
 
 ## 运行方式 (实机部署)
-在真实的机载电脑上，只需通过 `mavros.launch` 连接到飞控后运行算法：
+在真实的机载电脑上，首先通过串口连接到飞控Telem端口，接着调试mavros功能包的px4.launch文件参数完成连接，然后运行以下launch指令，会自动启动mavros节点和算法程序：
 ```bash
 # 程序会自动识别 hostname (如主机名为 UAV6，则自动以 UAV6 身份运行)
 roslaunch safe_valley_exp uav_offboard_real.launch

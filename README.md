@@ -9,8 +9,8 @@ This package aims for “zero-configuration” migration for multi-UAV deploymen
 
 ## Modular Architecture
 Four core modules:
-- **`safe_flock_main.py`**: Entry point and state machine. Manages transitions among `hover`, `form`, and `navi` modes.
-- **`flock_config.py`**: Identity resolution and parameter center. Supports resolving the local UAV ID via `roslaunch` and hostname, and loads all gains from YAML.
+- **`safe_flock_main.py`**: Entry point and state machine. Manages transitions among `hover` (hover), `form` (formation), and `navi` (navigation/flocking) modes.
+- **`flock_config.py`**: Identity resolution and parameter center. Resolves the local UAV ID via `roslaunch`/hostname, and loads all gains from YAML.
 - **`flock_comm.py`**: Communication manager. Implements GPS `TimeReference`-based clock bias correction and Leader-led global origin synchronization.
 - **`flock_method.py`**: Method library. Includes high-precision Reynolds flocking (cohesion, alignment, separation) and a dynamic elliptical potential-field obstacle avoidance model with “side nudge”.
 
@@ -96,7 +96,7 @@ If QGC shows “a second vehicle tab but no position/icon”, it typically means
 ---
 
 ## Usage (Real-world Deployment)
-On the real onboard computer, connect to the FCU via MAVROS and run the algorithm:
+On the real onboard computer, first connect to the FCU Telem port via a serial link, then configure the MAVROS `px4.launch` parameters to establish the connection. After that, run the launch file below, which starts both MAVROS and the control algorithm:
 ```bash
 # The program auto-detects hostname (e.g. UAV6) and runs with that identity
 roslaunch safe_valley_exp uav_offboard_real.launch
