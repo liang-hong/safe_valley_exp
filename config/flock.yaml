@@ -37,7 +37,7 @@ control:
 
 leader:
   name: "UAV6"
-  submode_channel: 6   # 子模式切换通道 1-based 通道号 (6对应RC通道6)
+  submode_channel: 8   # 子模式切换通道 1-based 通道号 (8对应RC通道8)
   leader_topics:
     - {name: mavros/rc/in,                   type: mavros_msgs/RCIn}
     - {name: leader_fix_origin,               type: sensor_msgs/NavSatFix}
