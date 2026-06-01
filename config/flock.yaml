@@ -3,7 +3,7 @@ control:
   rate: 30.0
 
   # 凝聚参数
-  r_safe: 0.4           # 安全半径
+  r_safe: 0.45           # 安全半径
   r_pack_gain: 2.1      # 堆积半径因子 (r_pack = r_pack_gain * r_safe)
   phi_sc: 0.52359877559 # 空间利用率 (pi/6)
   p_cohe: 1.0           # 凝聚增益
