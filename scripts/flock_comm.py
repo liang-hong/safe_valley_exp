@@ -61,6 +61,11 @@ class FlockComm:
         if self.cfg.leader_name != self.cfg.own_name:
             self.subscribe_leader_special_topics()
             self.subscribe_other_topics(self.cfg.leader_name)
+        elif self.cfg.leader_name == self.cfg.own_name:
+            # 订阅 自身（leader） 的 RCIn (用于同步切换模式)
+            rospy.Subscriber("/mavros/rc/in", RCIn, self.leader_rcin_cb)
+            # 订阅 自身（leader） 的原点
+            # rospy.Subscriber("/leader_fix_origin", NavSatFix, self.leader_fix_origin_cb)
 
     def subscribe_other_topics(self, other_name):
         prefix = ensure_global(other_name)
