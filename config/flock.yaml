@@ -27,7 +27,7 @@ control:
   max_climb_vel: 1.0    # 最大爬升速度
 
   # 编队形成参数
-  vel_form: 1.0          # 编队形成速度
+  vel_form: 0.5          # 编队形成速度
   kp_form: 0.5          # 编队位置P增益
   kd_form: 0.1          # 编队位置D增益
   min_height: 1.0        # 最小飞行高度
