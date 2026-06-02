@@ -17,6 +17,7 @@ log/
 .DS_Store
 .idea/
 .vscode/
+.trae/
 
 # 如果你在本地生成了测试或运行时的输出文件（如轨迹记录、截图等）
 *.png
