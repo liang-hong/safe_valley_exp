@@ -15,7 +15,7 @@ Four core modules:
 - **`flock_method.py`**: Method library. Includes high-precision Reynolds flocking (cohesion, alignment, separation) and a dynamic elliptical potential-field obstacle avoidance model with “side nudge”.
 
 Auxiliary modules:
-- **`submode_publisher.py`**: Submode publisher. Publishes the current submode (e.g. `hover`, `form`, `navi`) to the `/submode` topic for other nodes to subscribe.
+- **`submode_publisher.py`**: Submode publisher. Publishes the current submode (e.g. `hover`, `form`, `navi`) to the `/offb_submode` topic.
 - **`wait_mavros.py`**: MAVROS readiness waiter. Waits for MAVROS connection before the main node starts, ensuring all UAVs can communicate normally.
 
 ## Key Technical Features
@@ -86,6 +86,26 @@ roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV8 tgt_system:=3
 export ROS_MASTER_URI=http://localhost:11314
 export ROS_HOSTNAME=localhost
 roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV9 tgt_system:=4
+```
+
+### Rosbag Recording
+`uav_offboard_sim.launch` and `uav_offboard_real.launch` enable rosbag recording by default and write bags to `~/rosbagrec` (the directory is auto-created if missing).
+
+Topics recorded:
+- `/mavros/setpoint_velocity/cmd_vel`
+- `/mavros/setpoint_position/local`
+- `/mavros/global_position/set_gp_origin`
+- `/mavros/state`
+- `/mavros/local_position/odom`
+- `/offb_submode`
+
+Disable or change output directory:
+```bash
+# Disable recording
+roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV6 tgt_system:=1 enable_rosbag:=false
+
+# Change output directory
+roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV6 tgt_system:=1 rosbag_dir:=/home/ub20tg/rosbagrec
 ```
 
 ### 4. QGC Telemetry Notes

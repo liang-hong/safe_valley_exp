@@ -15,7 +15,7 @@
 - **`flock_method.py`**: 方法库。封装了高精度 Reynolds 集群算法（凝聚、对齐、分离）以及带“侧向逃逸”逻辑的动态椭圆势场避障模型。
 
 若干辅助模块：
-- **`submode_publisher.py`**: 子模式发布模块。负责将当前子模式（如 `hover`、`form`、`navi`）发布到 `/submode` 主题，供其他节点订阅。
+- **`submode_publisher.py`**: 子模式发布模块。负责将当前子模式（如 `hover`、`form`、`navi`）发布到 `/offb_submode` 主题。
 - **`wait_mavros.py`**: 等待 MAVROS 连接模块。负责在主节点启动前，等待 MAVROS 连接，确保所有无人机都能正常通信。
 
 ## 关键技术特性
@@ -88,6 +88,26 @@ roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV8 tgt_system:=3
 export ROS_MASTER_URI=http://localhost:11314
 export ROS_HOSTNAME=localhost
 roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV9 tgt_system:=4
+```
+
+### Rosbag 记录
+`uav_offboard_sim.launch` 和 `uav_offboard_real.launch` 默认开启 rosbag 记录，输出目录为 `~/rosbagrec`（目录不存在会自动创建）。
+
+记录话题：
+- `/mavros/setpoint_velocity/cmd_vel`
+- `/mavros/setpoint_position/local`
+- `/mavros/global_position/set_gp_origin`
+- `/mavros/state`
+- `/mavros/local_position/odom`
+- `/offb_submode`
+
+关闭记录或修改输出目录：
+```bash
+# 关闭记录
+roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV6 tgt_system:=1 enable_rosbag:=false
+
+# 修改输出目录
+roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV6 tgt_system:=1 rosbag_dir:=/home/ub20tg/rosbagrec
 ```
 
 ### 4. QGC 遥测要点
