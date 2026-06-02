@@ -72,6 +72,7 @@ class SafeFlockMain:
     def execute_hover(self):
         if self.submode_start_pose is None:
             self.submode_start_pose = copy.deepcopy(self.comm.own_pose)
+            rospy.loginfo(f"Hover start pose: {self.submode_start_pose}")
             self.submode_start_time = rospy.Time.now()
         hover_msg = PoseStamped()
         hover_msg.header.stamp = rospy.Time.now()
@@ -81,6 +82,7 @@ class SafeFlockMain:
     def execute_formation(self):
         if self.submode_start_pose is None:
             self.submode_start_pose = copy.deepcopy(self.comm.own_pose)
+            rospy.loginfo(f"Formation start pose: {self.submode_start_pose}")
             self.submode_start_time = rospy.Time.now()
 
         if self.cfg.own_name == self.cfg.leader_name:
@@ -141,6 +143,7 @@ class SafeFlockMain:
     def execute_navigation(self):
         if self.submode_start_pose is None:
             self.submode_start_pose = copy.deepcopy(self.comm.own_pose)
+            rospy.loginfo(f"Navigation start pose: {self.submode_start_pose}")
             self.submode_start_time = rospy.Time.now()
 
         if self.cfg.own_name == self.cfg.leader_name:
