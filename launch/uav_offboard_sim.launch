@@ -5,6 +5,8 @@
   <arg name="gcs_port" default="$(eval 34580 - 1 + arg('tgt_system'))"/>
   <arg name="fcu_url" default="udp://:$(arg udp_port)@localhost:$(arg gcs_port)"/>
   <arg name="enable_submode_publisher" default="true" />
+  <arg name="enable_rosbag" default="true" />
+  <arg name="rosbag_dir" default="$(env HOME)/rosbagrec" />
 
   <include file="$(find mavros)/launch/px4.launch">
     <arg name="gcs_url" value=""/>
@@ -17,5 +19,7 @@
     <arg name="uav_name" value="$(arg uav_name)"/>
     <arg name="enable_submode_publisher" value="$(arg enable_submode_publisher)"/>
     <arg name="safe_flock_exec" value="wait_mavros.py"/>
+    <arg name="enable_rosbag" value="$(arg enable_rosbag)"/>
+    <arg name="rosbag_dir" value="$(arg rosbag_dir)"/>
   </include>
 </launch>

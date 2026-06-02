@@ -4,6 +4,8 @@
   
   <arg name="uav_name" default="" />
   <arg name="safe_flock_exec" default="safe_flock_main.py" />
+  <arg name="enable_rosbag" default="false" />
+  <arg name="rosbag_dir" default="$(env HOME)/rosbagrec" />
 
   <!-- 1. 算法核心节点 -->
   <node pkg="safe_valley_exp" type="$(arg safe_flock_exec)" name="safe_flock" output="screen">
@@ -21,4 +23,7 @@
     <!-- <rosparam file="$(find swarm_topology_bridge)/config/topology_sim_swarm.yaml" command="load" /> -->
     <param name="uav_name" value="$(arg uav_name)" />
   </node>
+
+  <node if="$(arg enable_rosbag)" pkg="safe_valley_exp" type="rosbag_record.py" name="rosbag_record" output="screen"
+        args="--dir $(arg rosbag_dir) --prefix $(arg uav_name)_safe_valley /mavros/setpoint_velocity/cmd_vel /mavros/setpoint_position/local /mavros/global_position/set_gp_origin /mavros/state /mavros/local_position/odom /offb_submode" />
 </launch>

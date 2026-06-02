@@ -1,5 +1,7 @@
 <launch>
   <arg name="uav_name" default="" />
+  <arg name="enable_rosbag" default="true" />
+  <arg name="rosbag_dir" default="$(env HOME)/rosbagrec" />
   
   <include file="$(find mavros)/launch/px4.launch">
   </include>
@@ -7,5 +9,7 @@
   <include file="$(find safe_valley_exp)/launch/safe_flock_real.launch">
     <arg name="uav_name" value="$(arg uav_name)"/>
     <arg name="safe_flock_exec" value="wait_mavros.py"/>
+    <arg name="enable_rosbag" value="$(arg enable_rosbag)"/>
+    <arg name="rosbag_dir" value="$(arg rosbag_dir)"/>
   </include>
 </launch>
