@@ -22,7 +22,7 @@ control:
   p_sepa_obs: 0.5     # 障碍分离增益
 
   # 跟随参数
-  target_height: 2.0  # 目标高度
+  target_height: 6.0  # 目标高度
   kp_flock_z: 0.5       # 高度增益
   max_climb_vel: 1.0    # 最大爬升速度
 
@@ -41,7 +41,7 @@ leader:
   leader_topics:
     - {name: mavros/rc/in,                   type: mavros_msgs/RCIn}
     - {name: leader_fix_origin,               type: sensor_msgs/NavSatFix}
-  leader_height: 5.0   # leader 高度
+  leader_height: 8.0   # leader 高度
   circle_center: [5.0, 0.0]   # leader 圆轨迹中心
   circle_radius: 5.0   # leader 圆轨迹半径
   circle_speed: 0.5   # leader 圆轨迹速度
