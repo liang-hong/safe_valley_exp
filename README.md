@@ -18,6 +18,37 @@ Auxiliary modules:
 - **`submode_publisher.py`**: Submode publisher. Publishes the current submode (e.g. `hover`, `form`, `navi`) to the `/offb_submode` topic.
 - **`wait_mavros.py`**: MAVROS readiness waiter. Waits for MAVROS connection before the main node starts, ensuring all UAVs can communicate normally.
 
+## Program Relationships
+
+```text
+multi_uav_sim.launch    # Copy this file into px4/launch/ before use
+├── include → gazebo_ros/launch/empty_world.launch  # Load Gazebo world
+└── include → px4/launch/single_vehicle_spawn_xtd.launch  # Spawn 4 UAV instances
+    ├── group ns=iris_0 (ID=0, mavlink_tcp_port=4560, udp_gimbal_port=13030)
+    ├── group ns=iris_1 (ID=1, mavlink_tcp_port=4561, udp_gimbal_port=13031)
+    ├── group ns=iris_2 (ID=2, mavlink_tcp_port=4562, udp_gimbal_port=13032)
+    └── group ns=iris_3 (ID=3, mavlink_tcp_port=4563, udp_gimbal_port=13033)
+
+uav_offboard_sim.launch
+├── include → mavros/launch/px4.launch          # Start MAVROS
+└── include → safe_flock_sim.launch
+    ├── node safe_flock: wait_mavros.py         # Wait for MAVROS connection
+    │   └── execv → safe_flock_main.py          # Main algorithm program
+    ├── node submode_publisher: submode_publisher.py  # Submode button simulate
+    ├── rospackage: swarm_topology_bridge       # Communication package
+    │   └── node swarm_bridge: bridge_node.py
+    └── node rosbag_record: rosbag_record.py    # Data recording
+
+uav_offboard_real.launch
+├── include → mavros/launch/px4.launch          # Start MAVROS
+└── include → safe_flock_real.launch
+    ├── node safe_flock: wait_mavros.py         # Wait for MAVROS connection
+    │   └── execv → safe_flock_main.py          # Main algorithm program
+    ├── rospackage: swarm_topology_bridge       # Communication package
+    │   └── node swarm_bridge: bridge_node.py
+    └── node rosbag_record: rosbag_record.py    # Data recording
+```
+
 ## Key Technical Features
 - **Time consistency**: Computes the bias between system clock and GPS time to correct other-UAV odom timestamps and reduce distributed time jitter.
 - **Space alignment**: The Leader acquires global position and broadcasts it; Followers set `set_gp_origin` accordingly to ensure a shared ENU frame.
@@ -46,22 +77,34 @@ We recommend a two-layer structure for simulation (**simulation layer + onboard 
 - **Simulation layer (1 master)**: runs Gazebo + multiple PX4 SITL instances (multi-UAV). Does not run the algorithm.
 - **Onboard layer (N masters)**: one ROS master per UAV, runs only MAVROS + `swarm_topology_bridge` + `safe_valley_exp`. Connects to the simulation-layer PX4 instance via UDP `fcu_url`.
 
-### 2. Start the simulation layer (once, headless)
+### 1. Start the simulation UI
+
+Copy `multi_uav_sim.launch` into the `launch` directory of the `px4` package, then start the simulation UI.
+
 **Terminal A (simulation master: 11300)**
 ```bash
+# Copy multi_uav_sim.launch
+roscd px4/launch
+cp ~/catkin_ws/src/safe_valley_exp/launch/multi_uav_sim.launch .
+
 export ROS_MASTER_URI=http://localhost:11300
 export ROS_HOSTNAME=localhost
 export GAZEBO_MASTER_URI=http://localhost:11345
-roslaunch safe_valley_exp multi_uav_sim.launch
+roslaunch px4 multi_uav_sim.launch
 ```
 
-### 3. Start the onboard layer (one master per UAV)
+### 2. Start the onboard programs
+
+`source` the `devel/setup.bash` of the workspace that contains `safe_valley_exp`, then start the onboard programs.
 Ports and system IDs are offset by ID:
 - UAV6 (ID=0): `fcu_url=udp://:24540@localhost:34580`, `tgt_system=1`
 - UAV7 (ID=1): `fcu_url=udp://:24541@localhost:34581`, `tgt_system=2`
 
 **Terminal B1 UAV6 (onboard master: 11311)**
 ```bash
+# source the workspace, adjust the path to your environment
+source ~/catkin_ws/devel/setup.bash
+# run offboard program
 export ROS_MASTER_URI=http://localhost:11311
 export ROS_HOSTNAME=localhost
 roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV6 tgt_system:=1
@@ -69,6 +112,9 @@ roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV6 tgt_system:=1
 
 **Terminal B2 UAV7 (onboard master: 11312)**
 ```bash
+# source the workspace, adjust the path to your environment
+source ~/catkin_ws/devel/setup.bash
+# run offboard program
 export ROS_MASTER_URI=http://localhost:11312
 export ROS_HOSTNAME=localhost
 roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV7 tgt_system:=2
@@ -76,6 +122,9 @@ roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV7 tgt_system:=2
 
 **Terminal B3 UAV8 (onboard master: 11313)**
 ```bash
+# source the workspace, adjust the path to your environment
+source ~/catkin_ws/devel/setup.bash
+# run offboard program
 export ROS_MASTER_URI=http://localhost:11313
 export ROS_HOSTNAME=localhost
 roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV8 tgt_system:=3
@@ -83,10 +132,14 @@ roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV8 tgt_system:=3
 
 **Terminal B4 UAV9 (onboard master: 11314)**
 ```bash
+# source the workspace, adjust the path to your environment
+source ~/catkin_ws/devel/setup.bash
+# run offboard program
 export ROS_MASTER_URI=http://localhost:11314
 export ROS_HOSTNAME=localhost
 roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV9 tgt_system:=4
 ```
+
 
 ### Rosbag Recording
 `uav_offboard_sim.launch` and `uav_offboard_real.launch` enable rosbag recording by default and write bags to `~/rosbagrec` (the directory is auto-created if missing).
@@ -118,7 +171,9 @@ If QGC shows “a second vehicle tab but no position/icon”, it typically means
 ## Usage (Real-world Deployment)
 On the real onboard computer, first connect to the FCU Telem port via a serial link, then configure the MAVROS `px4.launch` parameters to establish the connection. After that, run the launch file below, which starts both MAVROS and the control algorithm:
 ```bash
-# The program auto-detects hostname (e.g. UAV6) and runs with that identity
+# source the workspace, adjust the path to your environment
+source ~/catkin_ws/devel/setup.bash
+# run offboard program. The program auto-detects hostname (e.g. UAV6) and runs with that identity
 roslaunch safe_valley_exp uav_offboard_real.launch
 ```
 
