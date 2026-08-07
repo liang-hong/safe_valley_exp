@@ -1,0 +1,4 @@
+[submodule "src/swarm_topology_bridge"]
+	path = src/swarm_topology_bridge
+	url = ssh://root@gitea/ub20tg/swarm_topology_bridge.git
+	branch = master
