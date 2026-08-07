@@ -55,26 +55,26 @@ uav_offboard_real.launch
 - **Vertical projection collision avoidance**: Treats the Leader as a virtual vertical axis (projection) during flocking to avoid altitude-layer collisions.
 - **Dynamic elliptical obstacle avoidance**: Uses a speed-dependent eccentricity ellipse with “side nudge” logic to break collinear deadlocks.
 
-## Dependencies & Submodule
+## Dependencies
 
-The communication bridge depends on `swarm_topology_bridge`. To let catkin discover it as an independent ROS package, the repository is no longer nested inside `safe_valley_exp`. It is managed as a submodule by the **catkin workspace root repository** and placed next to this package:
+The communication bridge depends on `swarm_topology_bridge`. It is an independent repository placed next to `safe_valley_exp` under the workspace `src/` directory, so that catkin can discover it as a separate ROS package:
 
 ```text
 <catkin_workspace>/
-├── .gitmodules
 └── src/
     ├── safe_valley_exp/
     └── swarm_topology_bridge/
 ```
 
-The root `.gitmodules` registers `swarm_topology_bridge` at `src/swarm_topology_bridge` and tracks the **master** branch. Initialize all submodules from the workspace root:
+`swarm_topology_bridge` can be cloned from either location:
 
 ```bash
-cd <catkin_workspace>
-git submodule update --init --recursive
-```
+# Local Gitea
+git clone http://ub20tglh:3000/ub20tg/swarm_topology_bridge.git
 
-> Do not move `swarm_topology_bridge` back under `safe_valley_exp/src/`. Catkin does not build a ROS package nested inside another ROS package as an independent package.
+# Cloud GitHub
+git clone https://github.com/liang-hong/swarm_topology_bridge.git
+```
 
 ## Installation & Build
 Compatible with ROS Melodic/Noetic.
@@ -106,7 +106,7 @@ Copy `multi_uav_sim.launch` into the `launch` directory of the `px4` package, th
 ```bash
 # Copy multi_uav_sim.launch
 roscd px4/launch
-cp ~/catkin_ws/src/safe_valley_exp/launch/multi_uav_sim.launch .
+cp <catkin_workspace>/src/safe_valley_exp/launch/multi_uav_sim.launch .
 
 export ROS_MASTER_URI=http://localhost:11300
 export ROS_HOSTNAME=localhost
@@ -124,7 +124,8 @@ Ports and system IDs are offset by ID:
 **Terminal B1 UAV6 (onboard master: 11311)**
 ```bash
 # source the workspace, adjust the path to your environment
-source ~/catkin_ws/devel/setup.bash
+cd <catkin_workspace>
+source devel/setup.bash
 # run offboard program
 export ROS_MASTER_URI=http://localhost:11311
 export ROS_HOSTNAME=localhost
@@ -134,7 +135,8 @@ roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV6 tgt_system:=1
 **Terminal B2 UAV7 (onboard master: 11312)**
 ```bash
 # source the workspace, adjust the path to your environment
-source ~/catkin_ws/devel/setup.bash
+cd <catkin_workspace>
+source devel/setup.bash
 # run offboard program
 export ROS_MASTER_URI=http://localhost:11312
 export ROS_HOSTNAME=localhost
@@ -144,7 +146,8 @@ roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV7 tgt_system:=2
 **Terminal B3 UAV8 (onboard master: 11313)**
 ```bash
 # source the workspace, adjust the path to your environment
-source ~/catkin_ws/devel/setup.bash
+cd <catkin_workspace>
+source devel/setup.bash
 # run offboard program
 export ROS_MASTER_URI=http://localhost:11313
 export ROS_HOSTNAME=localhost
@@ -154,7 +157,8 @@ roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV8 tgt_system:=3
 **Terminal B4 UAV9 (onboard master: 11314)**
 ```bash
 # source the workspace, adjust the path to your environment
-source ~/catkin_ws/devel/setup.bash
+cd <catkin_workspace>
+source devel/setup.bash
 # run offboard program
 export ROS_MASTER_URI=http://localhost:11314
 export ROS_HOSTNAME=localhost
@@ -193,7 +197,8 @@ If QGC shows “a second vehicle tab but no position/icon”, it typically means
 On the real onboard computer, first connect to the FCU Telem port via a serial link, then configure the MAVROS `px4.launch` parameters to establish the connection. After that, run the launch file below, which starts both MAVROS and the control algorithm:
 ```bash
 # source the workspace, adjust the path to your environment
-source ~/catkin_ws/devel/setup.bash
+cd <catkin_workspace>
+source devel/setup.bash
 # run offboard program. The program auto-detects hostname (e.g. UAV6) and runs with that identity
 roslaunch safe_valley_exp uav_offboard_real.launch
 ```

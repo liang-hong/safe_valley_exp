@@ -56,26 +56,26 @@ uav_offboard_real.launch
 - **垂直投影避碰**：在集群跟随过程中，将 Leader 视为垂直方向的虚拟轴（投影），从物理逻辑上规避了从机与领航者在高度层上的碰撞。
 - **动态椭圆避障**：离心率随速度动态变化的椭圆模型，包含“侧向避让”逻辑，有效解决速度与相对位置共线时的避障死锁。
 
-## 依赖与子模块
+## 依赖
 
-通信桥接依赖 `swarm_topology_bridge`。为使 catkin 能将其识别为独立 ROS 包，该仓库不再嵌套于 `safe_valley_exp` 包中，而是由 **catkin 工作空间根仓库**以子模块方式管理，并与本包平级放置：
+通信桥接依赖 `swarm_topology_bridge`。该仓库为独立仓库，与 `safe_valley_exp` 平级放置于工作空间 `src/` 下，从而使 catkin 能将其识别为独立 ROS 包：
 
 ```text
 <catkin_workspace>/
-├── .gitmodules
 └── src/
     ├── safe_valley_exp/
     └── swarm_topology_bridge/
 ```
 
-根仓库的 `.gitmodules` 将 `swarm_topology_bridge` 登记在 `src/swarm_topology_bridge`，并跟踪 **master** 分支。请从工作空间根目录初始化所有子模块：
+`swarm_topology_bridge` 的获取地址（任选其一）：
 
 ```bash
-cd <catkin_workspace>
-git submodule update --init --recursive
-```
+# 本地 Gitea
+git clone http://ub20tglh:3000/ub20tg/swarm_topology_bridge.git
 
-> 不要把 `swarm_topology_bridge` 放回 `safe_valley_exp/src/`。catkin 不会把 ROS 包内部嵌套的另一个包作为独立包编译。
+# 云端 GitHub
+git clone https://github.com/liang-hong/swarm_topology_bridge.git
+```
 
 ## 安装与编译
 兼容 ROS Melodic/Noetic 环境。
@@ -109,7 +109,7 @@ catkin_make --pkg safe_valley_exp swarm_topology_bridge
 ```bash
 # 复制 multi_uav_sim.launch
 roscd px4/launch
-cp ~/catkin_ws/src/safe_valley_exp/launch/multi_uav_sim.launch .
+cp <catkin_workspace>/src/safe_valley_exp/launch/multi_uav_sim.launch .
 # 启动仿真界面
 export ROS_MASTER_URI=http://localhost:11300
 export ROS_HOSTNAME=localhost
@@ -128,7 +128,8 @@ roslaunch px4 multi_uav_sim.launch
 **终端B1 UAV6（机载 Master：11311）**
 ```bash
 # source，按实际位置修改工作空间地址
-source ~/catkin_ws/devel/setup.bash
+cd <catkin_workspace>
+source devel/setup.bash
 # 启动机载程序
 export ROS_MASTER_URI=http://localhost:11311
 export ROS_HOSTNAME=localhost
@@ -138,7 +139,8 @@ roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV6 tgt_system:=1
 **终端B2 UAV7（机载 Master：11312）**
 ```bash
 # source，按实际位置修改工作空间地址
-source ~/catkin_ws/devel/setup.bash
+cd <catkin_workspace>
+source devel/setup.bash
 # 启动机载程序
 export ROS_MASTER_URI=http://localhost:11312
 export ROS_HOSTNAME=localhost
@@ -148,7 +150,8 @@ roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV7 tgt_system:=2
 **终端B3 UAV8（机载 Master：11313）**
 ```bash
 # source，按实际位置修改工作空间地址
-source ~/catkin_ws/devel/setup.bash
+cd <catkin_workspace>
+source devel/setup.bash
 # 启动机载程序
 export ROS_MASTER_URI=http://localhost:11313
 export ROS_HOSTNAME=localhost
@@ -158,7 +161,8 @@ roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV8 tgt_system:=3
 **终端B4 UAV9（机载 Master：11314）**
 ```bash
 # source，按实际位置修改工作空间地址
-source ~/catkin_ws/devel/setup.bash
+cd <catkin_workspace>
+source devel/setup.bash
 # 启动机载程序
 export ROS_MASTER_URI=http://localhost:11314
 export ROS_HOSTNAME=localhost
@@ -196,7 +200,8 @@ QGC 看到“第二台标签但没有位置/图标”，通常表示心跳已通
 在真实的机载电脑上，首先通过串口连接到飞控Telem端口，接着调试mavros功能包的px4.launch文件参数完成连接，然后运行以下launch指令，会自动启动mavros节点和算法程序：
 ```bash
 # source，按实际位置修改工作空间地址
-source ~/catkin_ws/devel/setup.bash
+cd <catkin_workspace>
+source devel/setup.bash
 # 启动机载程序，程序会自动识别 hostname (如主机名为 UAV6，则自动以 UAV6 身份运行)
 roslaunch safe_valley_exp uav_offboard_real.launch
 ```
