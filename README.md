@@ -58,7 +58,7 @@ uav_offboard_real.launch
 
 ## 依赖
 
-通信桥接依赖 `swarm_topology_bridge`。该仓库为独立仓库，与 `safe_valley_exp` 平级放置于工作空间 `src/` 下，从而使 catkin 能将其识别为独立 ROS 包：
+通信桥接依赖 `swarm_topology_bridge` 的 `master` 分支。该仓库为独立仓库，与 `safe_valley_exp` 平级放置于工作空间 `src/` 下，从而使 catkin 能将其识别为独立 ROS 包：
 
 ```text
 <catkin_workspace>/
@@ -71,10 +71,10 @@ uav_offboard_real.launch
 
 ```bash
 # 本地 Gitea
-git clone http://ub20tglh:3000/ub20tg/swarm_topology_bridge.git
+git clone -b master http://ub20tglh:3000/ub20tg/swarm_topology_bridge.git
 
 # 云端 GitHub
-git clone https://github.com/liang-hong/swarm_topology_bridge.git
+git clone -b master https://github.com/liang-hong/swarm_topology_bridge.git
 ```
 
 ## 安装与编译

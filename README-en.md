@@ -57,7 +57,7 @@ uav_offboard_real.launch
 
 ## Dependencies
 
-The communication bridge depends on `swarm_topology_bridge`. It is an independent repository placed next to `safe_valley_exp` under the workspace `src/` directory, so that catkin can discover it as a separate ROS package:
+The communication bridge depends on the `master` branch of `swarm_topology_bridge`. It is an independent repository placed next to `safe_valley_exp` under the workspace `src/` directory, so that catkin can discover it as a separate ROS package:
 
 ```text
 <catkin_workspace>/
@@ -70,10 +70,10 @@ The communication bridge depends on `swarm_topology_bridge`. It is an independen
 
 ```bash
 # Local Gitea
-git clone http://ub20tglh:3000/ub20tg/swarm_topology_bridge.git
+git clone -b master http://ub20tglh:3000/ub20tg/swarm_topology_bridge.git
 
 # Cloud GitHub
-git clone https://github.com/liang-hong/swarm_topology_bridge.git
+git clone -b master https://github.com/liang-hong/swarm_topology_bridge.git
 ```
 
 ## Installation & Build
