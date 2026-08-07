@@ -70,7 +70,7 @@ The communication bridge depends on the `master` branch of `swarm_topology_bridg
 
 ```bash
 # Local Gitea
-git clone -b master http://ub20tglh:3000/ub20tg/swarm_topology_bridge.git
+git clone -b master http://ub20tglh.local:3000/ub20tg/swarm_topology_bridge.git
 
 # Cloud GitHub
 git clone -b master https://github.com/liang-hong/swarm_topology_bridge.git

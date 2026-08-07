@@ -71,7 +71,7 @@ uav_offboard_real.launch
 
 ```bash
 # 本地 Gitea
-git clone -b master http://ub20tglh:3000/ub20tg/swarm_topology_bridge.git
+git clone -b master http://ub20tglh.local:3000/ub20tg/swarm_topology_bridge.git
 
 # 云端 GitHub
 git clone -b master https://github.com/liang-hong/swarm_topology_bridge.git
