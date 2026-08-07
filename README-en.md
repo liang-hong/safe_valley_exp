@@ -57,19 +57,32 @@ uav_offboard_real.launch
 
 ## Dependencies & Submodule
 
-The communication bridge depends on `swarm_topology_bridge`, registered inside this repo as a submodule tracking the **master** branch (see `.gitmodules`). Initialize it after cloning:
+The communication bridge depends on `swarm_topology_bridge`. To let catkin discover it as an independent ROS package, the repository is no longer nested inside `safe_valley_exp`. It is managed as a submodule by the **catkin workspace root repository** and placed next to this package:
+
+```text
+<catkin_workspace>/
+├── .gitmodules
+└── src/
+    ├── safe_valley_exp/
+    └── swarm_topology_bridge/
+```
+
+The root `.gitmodules` registers `swarm_topology_bridge` at `src/swarm_topology_bridge` and tracks the **master** branch. Initialize all submodules from the workspace root:
 
 ```bash
+cd <catkin_workspace>
 git submodule update --init --recursive
 ```
+
+> Do not move `swarm_topology_bridge` back under `safe_valley_exp/src/`. Catkin does not build a ROS package nested inside another ROS package as an independent package.
 
 ## Installation & Build
 Compatible with ROS Melodic/Noetic.
 ```bash
 # Recommended: catkin build
-catkin build safe_valley_exp
+catkin build safe_valley_exp swarm_topology_bridge
 # Or: catkin_make
-catkin_make --pkg safe_valley_exp
+catkin_make --pkg safe_valley_exp swarm_topology_bridge
 ```
 
 ## Configuration

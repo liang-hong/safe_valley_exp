@@ -58,19 +58,32 @@ uav_offboard_real.launch
 
 ## 依赖与子模块
 
-通信桥接依赖 `swarm_topology_bridge`（本包内以子模块方式登记，跟踪 **master** 分支），见 `.gitmodules`。首次克隆后需先初始化子模块：
+通信桥接依赖 `swarm_topology_bridge`。为使 catkin 能将其识别为独立 ROS 包，该仓库不再嵌套于 `safe_valley_exp` 包中，而是由 **catkin 工作空间根仓库**以子模块方式管理，并与本包平级放置：
+
+```text
+<catkin_workspace>/
+├── .gitmodules
+└── src/
+    ├── safe_valley_exp/
+    └── swarm_topology_bridge/
+```
+
+根仓库的 `.gitmodules` 将 `swarm_topology_bridge` 登记在 `src/swarm_topology_bridge`，并跟踪 **master** 分支。请从工作空间根目录初始化所有子模块：
 
 ```bash
+cd <catkin_workspace>
 git submodule update --init --recursive
 ```
+
+> 不要把 `swarm_topology_bridge` 放回 `safe_valley_exp/src/`。catkin 不会把 ROS 包内部嵌套的另一个包作为独立包编译。
 
 ## 安装与编译
 兼容 ROS Melodic/Noetic 环境。
 ```bash
 # 推荐使用 catkin build
-catkin build safe_valley_exp
+catkin build safe_valley_exp swarm_topology_bridge
 # 或者使用 catkin_make
-catkin_make --pkg safe_valley_exp
+catkin_make --pkg safe_valley_exp swarm_topology_bridge
 ```
 
 ## 配置说明
