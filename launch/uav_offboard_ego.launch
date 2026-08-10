@@ -1,0 +1,34 @@
+<launch>
+  <!-- 机载层：MAVROS + ego_swarm executor（单仿真无人机）
+       用法（终端 B，各自机载 Master）：
+       export ROS_MASTER_URI=http://localhost:11311
+       export ROS_HOSTNAME=localhost
+       roslaunch safe_valley_exp uav_offboard_ego.launch uav_name:=UAV1 uav_id:=A1 tgt_system:=1
+  -->
+  <arg name="uav_name" default="" />
+  <arg name="uav_id" default="$(eval arg('uav_name'))" />
+  <arg name="tgt_system" default="1" />
+  <arg name="udp_port" default="$(eval 24540 - 1 + arg('tgt_system'))"/>
+  <arg name="gcs_port" default="$(eval 34580 - 1 + arg('tgt_system'))"/>
+  <arg name="fcu_url" default="udp://:$(arg udp_port)@localhost:$(arg gcs_port)"/>
+  <arg name="neighbor_intents" default="" />
+  <arg name="interfaces_version" default="deployment-unset" />
+
+  <!-- 1. MAVROS 对接本机 PX4 SITL 实例 -->
+  <include file="$(find mavros)/launch/px4.launch">
+    <arg name="gcs_url" value=""/>
+    <arg name="fcu_url" value="$(arg fcu_url)"/>
+    <arg name="tgt_system" value="$(arg tgt_system)"/>
+    <arg name="tgt_component" value="1"/>
+  </include>
+
+  <!-- 2. EGO-Swarm executor（ego driver + 本地 safety lease watchdog） -->
+  <include file="$(find swarm_uav_executor)/launch/uav_executor_ego.launch">
+    <arg name="uav_id" value="$(arg uav_id)"/>
+    <arg name="exec_target" value="$(arg uav_name)"/>
+    <arg name="service_namespace" value="$(arg uav_name)"/>
+    <arg name="ego_namespace" value="$(arg uav_name)"/>
+    <arg name="neighbor_intents" value="$(arg neighbor_intents)"/>
+    <arg name="interfaces_version" value="$(arg interfaces_version)"/>
+  </include>
+</launch>
