@@ -27,7 +27,6 @@
     <arg name="uav_id" value="$(arg uav_id)"/>
     <arg name="exec_target" value="$(arg uav_name)"/>
     <arg name="service_namespace" value="$(arg uav_name)"/>
-    <arg name="ego_namespace" value="$(arg uav_name)"/>
     <arg name="neighbor_intents" value="$(arg neighbor_intents)"/>
     <arg name="interfaces_version" value="$(arg interfaces_version)"/>
   </include>
