@@ -33,5 +33,15 @@
     <arg name="interfaces_version" value="$(arg interfaces_version)"/>
     <arg name="formation_offsets" value="$(arg formation_offsets)"/>
     <arg name="leader_odom_topic_prefix" value="$(arg leader_odom_topic_prefix)"/>
+    <!-- 状态发布到全局 uav_task_state，供 swarm_bridge 订阅桥接至 GCS_A -->
+    <arg name="state_topic" value="/uav_task_state" />
+  </include>
+
+  <!-- 3. 拓扑桥接：把本机 mavros_state/uav_task_state/odom 桥到 GCS_A 与其他 UAV
+        （仅桥接，不跑 mock executor，避免与真实 executor 的 Service 冲突） -->
+  <include file="$(find tcp_to_ros)/launch/topology_group_a_sim.launch">
+    <arg name="uav_name" value="$(arg uav_name)"/>
+    <arg name="uav_id" value="$(arg uav_id)"/>
+    <arg name="run_uav_mock" value="false"/>
   </include>
 </launch>

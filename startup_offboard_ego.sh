@@ -43,21 +43,20 @@ stop_all() {
     | awk '{print $2}' | xargs -r kill 2>/dev/null || true
 }
 
-indexes="${1:-}"
-if [ -z "$indexes" ]; then
-  indexes="1"
+if [ "$#" -eq 0 ]; then
+  set -- 1
 fi
 
-case "$indexes" in
+case "$1" in
   stop)
     shift
     stop_all "${@:-}"
     echo "offboard ego stopped"
     ;;
   *)
-    for idx in $indexes; do
+    for idx in "$@"; do
       start_uav "$idx"
     done
-    echo "offboard ego started: $indexes"
+    echo "offboard ego started: $*"
     ;;
 esac

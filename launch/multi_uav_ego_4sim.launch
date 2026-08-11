@@ -1,10 +1,12 @@
 <launch>
-  <!-- 场景3 4机编队仿真（GUI）：UAV1..UAV4 -> iris_0..iris_3
-       编队初始布局（ENU，向南 5m 递推）：
+  <!-- 4机编队仿真（GUI）：UAV1..UAV4 -> iris_0..iris_3（快速调试入口）
+       场景3 完整 15 机测试请使用 multi_uav_ego_15sim.launch（UAV1..UAV15 -> iris_0..iris_14），
+       与 references/runtime group_a 六批次任务包（A01..A15）对齐。
+       编队初始布局（ENU）：
          UAV1/A01: (0, 0)
-         UAV2/A02: (0, -5)
-         UAV3/A03: (0, -10)
-         UAV4/A04: (5, -5)   预留位（后续 MOVE_TO 飞到 A02 原编队位置）
+         UAV2/A02: (0, -2)
+         UAV3/A03: (0, -4)
+         UAV4/A04: (2, -2)   预留位（后续 MOVE_TO 飞到 A02 原编队位置）
        用法（终端 A，仿制 Master 11300）：
          export ROS_MASTER_URI=http://localhost:11300
          export GAZEBO_MASTER_URI=http://localhost:11345
@@ -45,7 +47,7 @@
   <group ns="iris_1">
     <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
       <arg name="x" value="0"/>
-      <arg name="y" value="-5"/>
+      <arg name="y" value="-2"/>
       <arg name="z" value="0.5"/>
       <arg name="R" value="0"/>
       <arg name="P" value="0"/>
@@ -63,7 +65,7 @@
   <group ns="iris_2">
     <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
       <arg name="x" value="0"/>
-      <arg name="y" value="-10"/>
+      <arg name="y" value="-4"/>
       <arg name="z" value="0.5"/>
       <arg name="R" value="0"/>
       <arg name="P" value="0"/>
@@ -80,8 +82,8 @@
 
   <group ns="iris_3">
     <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
-      <arg name="x" value="5"/>
-      <arg name="y" value="-5"/>
+      <arg name="x" value="2"/>
+      <arg name="y" value="-2"/>
       <arg name="z" value="0.5"/>
       <arg name="R" value="0"/>
       <arg name="P" value="0"/>
