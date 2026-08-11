@@ -13,6 +13,8 @@
   <arg name="fcu_url" default="udp://:$(arg udp_port)@localhost:$(arg gcs_port)"/>
   <arg name="neighbor_intents" default="" />
   <arg name="interfaces_version" default="deployment-unset" />
+  <arg name="formation_offsets" default="{}" />
+  <arg name="leader_odom_topic_prefix" default="" />
 
   <!-- 1. MAVROS 对接本机 PX4 SITL 实例 -->
   <include file="$(find mavros)/launch/px4.launch">
@@ -29,5 +31,7 @@
     <arg name="service_namespace" value="$(arg uav_name)"/>
     <arg name="neighbor_intents" value="$(arg neighbor_intents)"/>
     <arg name="interfaces_version" value="$(arg interfaces_version)"/>
+    <arg name="formation_offsets" value="$(arg formation_offsets)"/>
+    <arg name="leader_odom_topic_prefix" value="$(arg leader_odom_topic_prefix)"/>
   </include>
 </launch>

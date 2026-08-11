@@ -20,7 +20,7 @@ start_uav() {
   local idx=$1
   local master_port=$((11310 + idx))
   local uav_name="UAV$idx"
-  local uav_id="A$idx"
+  local uav_id="UAV$idx"
   export ROS_MASTER_URI="http://localhost:$master_port"
   export ROS_HOSTNAME=localhost
   nohup roslaunch safe_valley_exp uav_offboard_ego.launch \
