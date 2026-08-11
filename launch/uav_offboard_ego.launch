@@ -44,4 +44,9 @@
     <arg name="uav_id" value="$(arg uav_id)"/>
     <arg name="run_uav_mock" value="false"/>
   </include>
+
+  <!-- 4. 全局原点接收器：经 bridge 订阅 GCS_A/group_a/gp_origin，
+       起飞前持续转发到 /mavros/global_position/set_gp_origin（统一各机 ENU 原点） -->
+  <node pkg="swarm_uav_executor" type="gp_origin_receiver.py"
+        name="gp_origin_receiver" output="screen"/>
 </launch>
