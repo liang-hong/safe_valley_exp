@@ -86,6 +86,18 @@ catkin build safe_valley_exp swarm_topology_bridge
 catkin_make --pkg safe_valley_exp swarm_topology_bridge
 ```
 
+## 环境变量（ROS 日志重定向）
+
+为避免 ROS 运行日志散落在 `~/.ros/log`，本工作空间统一将运行日志重定向到 `.ros_home/`：
+
+```bash
+export ROS_HOME=/home/ub20tg/catkin_swarm6-2/.ros_home
+export ROS_LOG_DIR=/home/ub20tg/catkin_swarm6-2/.ros_home/log
+mkdir -p "$ROS_LOG_DIR"
+```
+
+`startup_offboard_ego.sh` 与 `startup_safe_valley.sh` 已在开头自动设置上述环境变量；手动启动时请先在终端执行以上命令，确保当前工作空间所有 ROS 运行日志均写入 `.ros_home/log`。
+
 ## 配置说明
 所有算法参数均在 `config/flock.yaml` 中定义：
 - `control`: 存储安全半径、最大速/加速度及各类算法增益。

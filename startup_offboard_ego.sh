@@ -12,6 +12,11 @@
 #   gcs_port = 34580 - 1 + tgt_system
 set -u
 
+# 将 ROS 运行日志重定向到当前工作空间 .ros_home
+export ROS_HOME=/home/ub20tg/catkin_swarm6-2/.ros_home
+export ROS_LOG_DIR=/home/ub20tg/catkin_swarm6-2/.ros_home/log
+mkdir -p "$ROS_LOG_DIR"
+
 WS=/home/ub20tg/catkin_swarm6-2
 source /opt/ros/noetic/setup.bash
 source "$WS/devel/setup.bash"

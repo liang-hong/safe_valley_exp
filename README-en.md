@@ -85,6 +85,18 @@ catkin build safe_valley_exp swarm_topology_bridge
 catkin_make --pkg safe_valley_exp swarm_topology_bridge
 ```
 
+## Environment Variables (ROS Log Redirection)
+
+To avoid ROS runtime logs scattered under `~/.ros/log`, this workspace redirects all runtime logs to `.ros_home/`:
+
+```bash
+export ROS_HOME=/home/ub20tg/catkin_swarm6-2/.ros_home
+export ROS_LOG_DIR=/home/ub20tg/catkin_swarm6-2/.ros_home/log
+mkdir -p "$ROS_LOG_DIR"
+```
+
+`startup_offboard_ego.sh` and `startup_safe_valley.sh` already set these variables at the top. When launching manually, run the commands above first to ensure all ROS runtime logs from this workspace are written into `.ros_home/log`.
+
 ## Configuration
 All algorithm parameters are defined in `config/flock.yaml`:
 - `control`: safety radius, max speed/accel, and other gains.
