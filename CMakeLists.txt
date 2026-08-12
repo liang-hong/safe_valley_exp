@@ -22,6 +22,7 @@ catkin_install_python(PROGRAMS
   scripts/safe_flock_main.py
   scripts/wait_mavros.py
   scripts/submode_publisher.py
+  scripts/offboard_takeoff_15.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
