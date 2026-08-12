@@ -1,9 +1,10 @@
 <launch>
   <!-- 场景3 15机编队仿真（GUI）：UAV1..UAV15 -> iris_0..iris_14
-       编队初始布局（ENU，3 排 x 5 列，5m 间距，位于场地左下角安全区）：
-         UAV1/A01:  (5, 5)   UAV2/A02:  (5, 10)  UAV3/A03:  (5, 15)  UAV4/A04:  (5, 20)  UAV5/A05:  (5, 25)
-         UAV6/A06:  (10, 5)  UAV7/A07:  (10, 10) UAV8/A08:  (10, 15) UAV9/A09:  (10, 20) UAV10/A10: (10, 25)
-         UAV11/A11: (15, 5)  UAV12/A12: (15, 10) UAV13/A13: (15, 15) UAV14/A14: (15, 20) UAV15/A15: (15, 25)
+       Gazebo 世界坐标初始布局（x 向右，y 向前，5m 间距）：
+         y=10: A01 A04 A07 A10 A13
+         y= 5: A02 A05 A08 A11 A14
+         y= 0: A03 A06 A09 A12 A15
+               x=0 x=5 x=10 x=15 x=20
        对应 references/runtime group_a 六批次任务包：
          prepare -> A01..A12；coverage-segment-1 -> A01..A12
          fault-exit -> A07..A12；recovery / coverage-segment-2 / hold-end -> A01..A06 + A13..A15(RESERVE)
@@ -29,7 +30,7 @@
 
   <group ns="iris_0">
     <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
-      <arg name="x" value="5"/><arg name="y" value="5"/>
+      <arg name="x" value="0"/><arg name="y" value="10"/>
       <arg name="z" value="0.5"/>
       <arg name="R" value="0"/><arg name="P" value="0"/><arg name="Y" value="0"/>
       <arg name="vehicle" value="iris"/><arg name="sdf" value="iris"/>
@@ -42,7 +43,7 @@
 
   <group ns="iris_1">
     <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
-      <arg name="x" value="5"/><arg name="y" value="10"/>
+      <arg name="x" value="0"/><arg name="y" value="5"/>
       <arg name="z" value="0.5"/>
       <arg name="R" value="0"/><arg name="P" value="0"/><arg name="Y" value="0"/>
       <arg name="vehicle" value="iris"/><arg name="sdf" value="iris"/>
@@ -55,7 +56,7 @@
 
   <group ns="iris_2">
     <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
-      <arg name="x" value="5"/><arg name="y" value="15"/>
+      <arg name="x" value="0"/><arg name="y" value="0"/>
       <arg name="z" value="0.5"/>
       <arg name="R" value="0"/><arg name="P" value="0"/><arg name="Y" value="0"/>
       <arg name="vehicle" value="iris"/><arg name="sdf" value="iris"/>
@@ -68,7 +69,7 @@
 
   <group ns="iris_3">
     <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
-      <arg name="x" value="5"/><arg name="y" value="20"/>
+      <arg name="x" value="5"/><arg name="y" value="10"/>
       <arg name="z" value="0.5"/>
       <arg name="R" value="0"/><arg name="P" value="0"/><arg name="Y" value="0"/>
       <arg name="vehicle" value="iris"/><arg name="sdf" value="iris"/>
@@ -81,7 +82,7 @@
 
   <group ns="iris_4">
     <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
-      <arg name="x" value="5"/><arg name="y" value="25"/>
+      <arg name="x" value="5"/><arg name="y" value="5"/>
       <arg name="z" value="0.5"/>
       <arg name="R" value="0"/><arg name="P" value="0"/><arg name="Y" value="0"/>
       <arg name="vehicle" value="iris"/><arg name="sdf" value="iris"/>
@@ -94,7 +95,7 @@
 
   <group ns="iris_5">
     <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
-      <arg name="x" value="10"/><arg name="y" value="5"/>
+      <arg name="x" value="5"/><arg name="y" value="0"/>
       <arg name="z" value="0.5"/>
       <arg name="R" value="0"/><arg name="P" value="0"/><arg name="Y" value="0"/>
       <arg name="vehicle" value="iris"/><arg name="sdf" value="iris"/>
@@ -120,7 +121,7 @@
 
   <group ns="iris_7">
     <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
-      <arg name="x" value="10"/><arg name="y" value="15"/>
+      <arg name="x" value="10"/><arg name="y" value="5"/>
       <arg name="z" value="0.5"/>
       <arg name="R" value="0"/><arg name="P" value="0"/><arg name="Y" value="0"/>
       <arg name="vehicle" value="iris"/><arg name="sdf" value="iris"/>
@@ -133,7 +134,7 @@
 
   <group ns="iris_8">
     <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
-      <arg name="x" value="10"/><arg name="y" value="20"/>
+      <arg name="x" value="10"/><arg name="y" value="0"/>
       <arg name="z" value="0.5"/>
       <arg name="R" value="0"/><arg name="P" value="0"/><arg name="Y" value="0"/>
       <arg name="vehicle" value="iris"/><arg name="sdf" value="iris"/>
@@ -146,7 +147,7 @@
 
   <group ns="iris_9">
     <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
-      <arg name="x" value="10"/><arg name="y" value="25"/>
+      <arg name="x" value="15"/><arg name="y" value="10"/>
       <arg name="z" value="0.5"/>
       <arg name="R" value="0"/><arg name="P" value="0"/><arg name="Y" value="0"/>
       <arg name="vehicle" value="iris"/><arg name="sdf" value="iris"/>
@@ -172,7 +173,7 @@
 
   <group ns="iris_11">
     <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
-      <arg name="x" value="15"/><arg name="y" value="10"/>
+      <arg name="x" value="15"/><arg name="y" value="0"/>
       <arg name="z" value="0.5"/>
       <arg name="R" value="0"/><arg name="P" value="0"/><arg name="Y" value="0"/>
       <arg name="vehicle" value="iris"/><arg name="sdf" value="iris"/>
@@ -185,7 +186,7 @@
 
   <group ns="iris_12">
     <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
-      <arg name="x" value="15"/><arg name="y" value="15"/>
+      <arg name="x" value="20"/><arg name="y" value="10"/>
       <arg name="z" value="0.5"/>
       <arg name="R" value="0"/><arg name="P" value="0"/><arg name="Y" value="0"/>
       <arg name="vehicle" value="iris"/><arg name="sdf" value="iris"/>
@@ -198,7 +199,7 @@
 
   <group ns="iris_13">
     <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
-      <arg name="x" value="15"/><arg name="y" value="20"/>
+      <arg name="x" value="20"/><arg name="y" value="5"/>
       <arg name="z" value="0.5"/>
       <arg name="R" value="0"/><arg name="P" value="0"/><arg name="Y" value="0"/>
       <arg name="vehicle" value="iris"/><arg name="sdf" value="iris"/>
@@ -211,7 +212,7 @@
 
   <group ns="iris_14">
     <include file="$(find px4)/launch/single_vehicle_spawn_xtd.launch">
-      <arg name="x" value="15"/><arg name="y" value="25"/>
+      <arg name="x" value="20"/><arg name="y" value="0"/>
       <arg name="z" value="0.5"/>
       <arg name="R" value="0"/><arg name="P" value="0"/><arg name="Y" value="0"/>
       <arg name="vehicle" value="iris"/><arg name="sdf" value="iris"/>

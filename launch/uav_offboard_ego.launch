@@ -15,6 +15,7 @@
   <arg name="interfaces_version" default="deployment-unset" />
   <arg name="formation_offsets" default="{}" />
   <arg name="leader_odom_topic_prefix" default="" />
+  <arg name="neighbor_odom_topics" default="" />
 
   <!-- 1. MAVROS 对接本机 PX4 SITL 实例 -->
   <include file="$(find mavros)/launch/px4.launch">
@@ -33,6 +34,7 @@
     <arg name="interfaces_version" value="$(arg interfaces_version)"/>
     <arg name="formation_offsets" value="$(arg formation_offsets)"/>
     <arg name="leader_odom_topic_prefix" value="$(arg leader_odom_topic_prefix)"/>
+    <arg name="neighbor_odom_topics" value="$(arg neighbor_odom_topics)"/>
     <!-- 状态发布到全局 uav_task_state，供 swarm_bridge 订阅桥接至 GCS_A -->
     <arg name="state_topic" value="/uav_task_state" />
   </include>
@@ -45,8 +47,7 @@
     <arg name="run_uav_mock" value="false"/>
   </include>
 
-  <!-- 4. 全局原点接收器：经 bridge 订阅 GCS_A/group_a/gp_origin，
-       起飞前持续转发到 /mavros/global_position/set_gp_origin（统一各机 ENU 原点） -->
+  <!-- 4. 一次性全局原点设置和 MAVROS 回读确认。 -->
   <node pkg="swarm_uav_executor" type="gp_origin_receiver.py"
         name="gp_origin_receiver" output="screen"/>
 </launch>

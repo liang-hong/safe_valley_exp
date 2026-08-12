@@ -26,10 +26,22 @@ start_uav() {
   local master_port=$((11310 + idx))
   local uav_name="UAV$idx"
   local uav_id="UAV$idx"
+  local neighbor_odom_topics=""
+  local neighbor_idx
+  for neighbor_idx in $(seq 1 15); do
+    if [ "$neighbor_idx" -eq "$idx" ]; then
+      continue
+    fi
+    if [ -n "$neighbor_odom_topics" ]; then
+      neighbor_odom_topics+=","
+    fi
+    neighbor_odom_topics+="/UAV${neighbor_idx}/mavros/local_position/odom"
+  done
   export ROS_MASTER_URI="http://localhost:$master_port"
   export ROS_HOSTNAME=localhost
   nohup roslaunch safe_valley_exp uav_offboard_ego.launch \
     uav_name:=$uav_name uav_id:=$uav_id tgt_system:=$idx \
+    neighbor_odom_topics:=$neighbor_odom_topics \
     interfaces_version:=sitl-ego-combined \
     > "/tmp/${uav_name}_offboard_ego.log" 2>&1 &
   echo "$!" > "/tmp/${uav_name}_offboard_ego.pid"
