@@ -18,8 +18,16 @@ export ROS_LOG_DIR=/home/ub20tg/catkin_swarm6-2/.ros_home/log
 mkdir -p "$ROS_LOG_DIR"
 
 WS=/home/ub20tg/catkin_swarm6-2
+PX4_ROOT=/home/ub20tg/PX4_Firmware
+PX4_BUILD="$PX4_ROOT/build/px4_sitl_default"
 source /opt/ros/noetic/setup.bash
 source "$WS/devel/setup.bash"
+# The PX4 launch files used by uav_offboard_ego.launch are not in the catkin
+# workspace.  Load the same Gazebo/PX4 environment used for the simulation
+# layer after sourcing catkin, otherwise each background roslaunch exits before
+# creating its ROS master and leaves an empty log.
+source "$PX4_ROOT/Tools/setup_gazebo.bash" "$PX4_ROOT" "$PX4_BUILD"
+export ROS_PACKAGE_PATH="$ROS_PACKAGE_PATH:$PX4_ROOT:$PX4_ROOT/Tools/sitl_gazebo"
 
 start_uav() {
   local idx=$1
