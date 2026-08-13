@@ -1,9 +1,9 @@
 #!/bin/bash
-# 机载层批量启动：MAVROS + ego_swarm executor（每个仿真无人机一个独立 ROS Master）
+# 机载层顺序启动：MAVROS + ego_swarm executor（每个仿真无人机一个独立 ROS Master）
 #
 # 用法（在 safe_valley_exp 所在工作空间 root 运行）：
 #   source devel/setup.bash
-#   bash src/safe_valley_exp/startup_offboard_ego.sh 1 2 3        # 启动 UAV1/UAV2/UAV3 (tgt_system 1/2/3)
+#   bash src/safe_valley_exp/startup_offboard_ego.sh 1 2 3        # 顺序启动 UAV1/UAV2/UAV3 (tgt_system 1/2/3)
 #   bash src/safe_valley_exp/startup_offboard_ego.sh               # 默认启动 UAV1 (tgt_system 1)
 #
 # 每个 UAV 一个独立 Master：UAV$idx -> 11310+idx
@@ -28,6 +28,8 @@ source "$WS/devel/setup.bash"
 # creating its ROS master and leaves an empty log.
 source "$PX4_ROOT/Tools/setup_gazebo.bash" "$PX4_ROOT" "$PX4_BUILD"
 export ROS_PACKAGE_PATH="$ROS_PACKAGE_PATH:$PX4_ROOT:$PX4_ROOT/Tools/sitl_gazebo"
+
+STARTUP_TIMEOUT_S=${STARTUP_TIMEOUT_S:-120}
 
 start_uav() {
   local idx=$1
@@ -54,6 +56,19 @@ start_uav() {
     > "/tmp/${uav_name}_offboard_ego.log" 2>&1 &
   echo "$!" > "/tmp/${uav_name}_offboard_ego.pid"
   echo "started $uav_name (master=$master_port, tgt_system=$idx, pid=$!)"
+
+  echo "waiting $uav_name ROS Master and MAVROS state (timeout=${STARTUP_TIMEOUT_S}s)"
+  if ! timeout "$STARTUP_TIMEOUT_S" bash -c \
+    "until ROS_MASTER_URI=http://localhost:$master_port rosnode list >/dev/null 2>&1; do sleep 1; done"; then
+    echo "ERROR: $uav_name ROS Master not ready within ${STARTUP_TIMEOUT_S}s" >&2
+    return 1
+  fi
+  if ! timeout "$STARTUP_TIMEOUT_S" bash -c \
+    "until ROS_MASTER_URI=http://localhost:$master_port rostopic echo -n 1 /mavros/state >/dev/null 2>&1; do sleep 1; done"; then
+    echo "ERROR: $uav_name /mavros/state not ready within ${STARTUP_TIMEOUT_S}s" >&2
+    return 1
+  fi
+  echo "ready $uav_name (master=$master_port, MAVROS state available)"
 }
 
 stop_all() {
@@ -80,8 +95,11 @@ case "$1" in
     ;;
   *)
     for idx in "$@"; do
-      start_uav "$idx"
+      if ! start_uav "$idx"; then
+        echo "startup stopped before UAV$idx; inspect /tmp/UAV${idx}_offboard_ego.log" >&2
+        exit 1
+      fi
     done
-    echo "offboard ego started: $*"
+    echo "offboard ego started sequentially: $*"
     ;;
 esac
