@@ -18,7 +18,8 @@
   加 --parallel -> 所有选中 UAV 并发运行。
 
 注意:
-  - 无 RC 的 SITL 必须设 COM_RCL_EXCEPT=4，否则 RC 丢失触发 failsafe（RTL）
+  - 本脚本会自动注入无 RC SITL 必需参数：COM_RCL_EXCEPT=4、NAV_RCL_ACT=0。
+    任一参数设置失败即中止本机，避免 RC 丢失触发 failsafe（RTL）
   - 起飞高度由 ego_planner_driver 的 takeoff_height_m 参数控制（默认 5.0m）
   - 本脚本不再调用 /mavros/cmd/takeoff（MAV_CMD_NAV_TAKEOFF），
     避免 PX4 preflight 在 set_gp_origin 修改 EKF2 origin 后拦截
@@ -28,7 +29,8 @@ import os
 import sys
 
 import rospy
-from mavros_msgs.srv import CommandBool, SetMode
+from mavros_msgs.msg import ParamValue
+from mavros_msgs.srv import CommandBool, ParamPush, ParamSet, SetMode
 
 ROS_SETUP = "/opt/ros/noetic/setup.bash"
 WS = "/home/ub20tg/catkin_swarm6-2"
@@ -39,11 +41,52 @@ class TakeoffUAV:
         self.idx = idx
         self.master_port = 11310 + idx
 
+    def _inject_rc_params(self):
+        """注入无 RC SITL 必需参数：COM_RCL_EXCEPT=4、NAV_RCL_ACT=0。
+
+        任一参数设置失败即返回非零，调用方应中止本机起飞，避免参数
+        未就绪时 RC 丢失触发 failsafe（RTL）。
+        """
+        try:
+            rospy.wait_for_service("/mavros/param/set", timeout=10)
+            param_set = rospy.ServiceProxy("/mavros/param/set", ParamSet)
+        except (rospy.ROSException, rospy.ServiceException) as exc:
+            rospy.logerr("UAV%d: param/set 服务不可用: %s", self.idx, exc)
+            return 1
+        for pid, ival in (("COM_RCL_EXCEPT", 4), ("NAV_RCL_ACT", 0)):
+            pv = ParamValue()
+            pv.integer = ival
+            pv.real = 0.0
+            try:
+                resp = param_set(pid, pv)
+            except rospy.ServiceException as exc:
+                rospy.logerr("UAV%d: param %s 设置异常: %s", self.idx, pid, exc)
+                return 1
+            if not resp.success:
+                rospy.logerr("UAV%d: param %s=%d 被拒绝", self.idx, pid, ival)
+                return 1
+            rospy.loginfo("UAV%d: param %s=%d success=%s",
+                          self.idx, pid, ival, resp.success)
+        try:
+            rospy.wait_for_service("/mavros/param/push", timeout=10)
+            push = rospy.ServiceProxy("/mavros/param/push", ParamPush)
+            presp = push()
+            rospy.loginfo("UAV%d: param push transfered=%s",
+                          self.idx, presp.param_transfered)
+        except (rospy.ROSException, rospy.ServiceException) as exc:
+            rospy.logwarn("UAV%d: param push 失败（本次已生效，仅影响持久化）: %s",
+                          self.idx, exc)
+        return 0
+
     def run(self):
         os.environ["ROS_MASTER_URI"] = "http://localhost:%d" % self.master_port
         os.environ["ROS_HOSTNAME"] = "localhost"
         rospy.init_node("takeoff_uav%d" % self.idx, anonymous=True)
         rospy.loginfo("UAV%d: master=%d", self.idx, self.master_port)
+
+        # 0) 注入无 RC SITL 必需参数（任一失败即中止，避免 RC failsafe -> RTL）
+        if self._inject_rc_params() != 0:
+            return 1
 
         # 1) arm。ego_planner_driver 自己看 MAVROS 状态，触发 TAKEOFF。
         try:
