@@ -7,9 +7,10 @@
      统一坐标系并待命；ego driver 启动后处于 TAKEOFF 状态，在 IDLE 下已持续
      30Hz 发布 /mavros/setpoint_position/local（经 setpoint_relay）。
   1. 本脚本对选中的每架 UAV：
-     a. arm 无人机
-     b. 切 OFFBOARD
-     c. 成功进入 OFFBOARD 后立即退出；后续 TAKEOFF/HOLD/IDLE
+     a. 先切 HOLD（Auto 模式，arm 时不要求 RC 输入）
+     b. arm 无人机
+     c. 切 OFFBOARD
+     d. 成功进入 OFFBOARD 后立即退出；后续 TAKEOFF/HOLD/IDLE
          状态转换完全由 ego_planner_driver 负责
 
 用法：
@@ -20,6 +21,8 @@
 注意:
   - 本脚本会自动注入无 RC SITL 必需参数：COM_RCL_EXCEPT=4、NAV_RCL_ACT=0。
     任一参数设置失败即中止本机，避免 RC 丢失触发 failsafe（RTL）
+  - arm 前先切 HOLD（Auto 模式，arm 不要求 RC 输入）：仿真无遥控可直接 arm，
+    实机遥控仅作应急接管；若 HOLD 被拒则回退 AUTO.LOITER（同为 Auto 模式）
   - 起飞高度由 ego_planner_driver 的 takeoff_height_m 参数控制（默认 5.0m）
   - 本脚本不再调用 /mavros/cmd/takeoff（MAV_CMD_NAV_TAKEOFF），
     避免 PX4 preflight 在 set_gp_origin 修改 EKF2 origin 后拦截
@@ -88,7 +91,30 @@ class TakeoffUAV:
         if self._inject_rc_params() != 0:
             return 1
 
-        # 1) arm。ego_planner_driver 自己看 MAVROS 状态，触发 TAKEOFF。
+        # 1) 准备 set_mode 服务（HOLD/LOITER 预选 + OFFBOARD 共用）
+        try:
+            rospy.wait_for_service("/mavros/set_mode", timeout=10)
+            set_mode = rospy.ServiceProxy("/mavros/set_mode", SetMode)
+        except rospy.ROSException as exc:
+            rospy.logerr("UAV%d: set_mode 服务不可用: %s", self.idx, exc)
+            return 1
+
+        # 2) 先切 HOLD（Auto 模式，arm 时不要求 RC 输入）。
+        #    仿真无遥控：不依赖虚拟摇杆即可 arm；
+        #    实机有遥控：遥控仅作应急接管，不参与常规起飞流程。
+        #    若 HOLD 被 PX4 拒绝则回退 AUTO.LOITER（同为 Auto 模式，arm 同样免 RC）。
+        hold_ok = False
+        for mode in ("HOLD", "AUTO.LOITER"):
+            resp = set_mode(0, mode)
+            rospy.loginfo("UAV%d: %s mode_sent=%s", self.idx, mode, resp.mode_sent)
+            if resp.mode_sent:
+                hold_ok = True
+                break
+        if not hold_ok:
+            rospy.logerr("UAV%d: HOLD/AUTO.LOITER 预选全部失败", self.idx)
+            return 1
+
+        # 3) arm。ego_planner_driver 自己看 MAVROS 状态，触发 TAKEOFF。
         try:
             rospy.wait_for_service("/mavros/cmd/arming", timeout=10)
             arm = rospy.ServiceProxy("/mavros/cmd/arming", CommandBool)
@@ -102,19 +128,13 @@ class TakeoffUAV:
             rospy.logerr("UAV%d: arm 被拒绝", self.idx)
             return 1
 
-        # 2) 切 OFFBOARD。只看服务响应，不等状态回报。
-        try:
-            rospy.wait_for_service("/mavros/set_mode", timeout=10)
-            set_mode = rospy.ServiceProxy("/mavros/set_mode", SetMode)
-        except rospy.ROSException as exc:
-            rospy.logerr("UAV%d: set_mode 服务不可用: %s", self.idx, exc)
-            return 1
+        # 4) 切 OFFBOARD。只看服务响应，不等状态回报。
         resp = set_mode(0, "OFFBOARD")
         rospy.loginfo("UAV%d: OFFBOARD mode_sent=%s", self.idx, resp.mode_sent)
         if not resp.mode_sent:
             rospy.logerr("UAV%d: OFFBOARD 请求失败", self.idx)
             return 1
-        rospy.loginfo("UAV%d: arm + OFFBOARD 请求完成；脚本退出", self.idx)
+        rospy.loginfo("UAV%d: HOLD -> arm -> OFFBOARD 请求完成；脚本退出", self.idx)
         return 0
 
 
