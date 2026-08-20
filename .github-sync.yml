@@ -1,0 +1,5 @@
+# 仓库级 Gitea -> GitHub 同步配置
+github:
+  state: enable        # 本仓库启用同步
+  private: false       # 云端仓库公开
+  default_branch: modular   # 云端仓库默认分支
