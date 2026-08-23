@@ -4,8 +4,8 @@
 
 职责（配合正确启动流程）：
   0. 先启动机载层（offboard 程序）：MAVROS + ego driver + executor + bridge，
-     统一坐标系并待命；ego driver 启动后处于 TAKEOFF 状态，在 IDLE 下已持续
-     30Hz 发布 /mavros/setpoint_position/local（经 setpoint_relay）。
+     统一坐标系并待命；ego driver 启动后处于 TAKEOFF 状态，经 setpoint_relay
+     以 30Hz 独占发布 /mavros/setpoint_raw/local（唯一 MAVROS setpoint 发布者）。
   1. 本脚本对选中的每架 UAV：
      a. 先切 HOLD（Auto 模式，arm 时不要求 RC 输入）
      b. arm 无人机

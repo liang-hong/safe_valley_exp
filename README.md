@@ -185,8 +185,9 @@ roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV9 tgt_system:=4
 `uav_offboard_sim.launch` 和 `uav_offboard_real.launch` 默认开启 rosbag 记录，输出目录为 `~/rosbagrec`（目录不存在会自动创建）。
 
 记录话题：
-- `/mavros/setpoint_velocity/cmd_vel`
-- `/mavros/setpoint_position/local`
+- `/mavros/setpoint_velocity/cmd_vel`（legacy flock 场景）
+- `/mavros/setpoint_position/local`（legacy flock 场景）
+- `/mavros/setpoint_raw/local`（EGO 控制链路，setpoint_relay 唯一发布者）
 - `/mavros/global_position/set_gp_origin`
 - `/mavros/state`
 - `/mavros/local_position/odom`
