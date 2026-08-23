@@ -18,8 +18,8 @@ export ROS_LOG_DIR=/home/ub20tg/catkin_swarm6-2/.ros_home/log
 mkdir -p "$ROS_LOG_DIR"
 
 WS=/home/ub20tg/catkin_swarm6-2
-# 本脚本运行日志/pid 统一放工作空间 .tmp（不使用 /tmp）
-mkdir -p "$WS/.tmp"
+# 本脚本运行日志/pid 统一放工作空间 .tmp/logs（不使用 /tmp）
+mkdir -p "$WS/.tmp/logs"
 PX4_ROOT=/home/ub20tg/PX4_Firmware
 PX4_BUILD="$PX4_ROOT/build/px4_sitl_default"
 source /opt/ros/noetic/setup.bash
@@ -55,8 +55,8 @@ start_uav() {
     uav_name:=$uav_name uav_id:=$uav_id tgt_system:=$idx \
     neighbor_odom_topics:=$neighbor_odom_topics \
     interfaces_version:=sitl-ego-combined \
-    > "$WS/.tmp/${uav_name}_offboard_ego.log" 2>&1 &
-  echo "$!" > "$WS/.tmp/${uav_name}_offboard_ego.pid"
+    > "$WS/.tmp/logs/${uav_name}_offboard_ego.log" 2>&1 &
+  echo "$!" > "$WS/.tmp/logs/${uav_name}_offboard_ego.pid"
   echo "started $uav_name (master=$master_port, tgt_system=$idx, pid=$!)"
 
   echo "waiting $uav_name ROS Master and MAVROS state (timeout=${STARTUP_TIMEOUT_S}s)"
@@ -75,9 +75,9 @@ start_uav() {
 
 stop_all() {
   for idx in "${@:-}"; do
-    if [ -f "$WS/.tmp/UAV${idx}_offboard_ego.pid" ]; then
-      kill "$(cat "$WS/.tmp/UAV${idx}_offboard_ego.pid")" 2>/dev/null
-      rm -f "$WS/.tmp/UAV${idx}_offboard_ego.pid"
+    if [ -f "$WS/.tmp/logs/UAV${idx}_offboard_ego.pid" ]; then
+      kill "$(cat "$WS/.tmp/logs/UAV${idx}_offboard_ego.pid")" 2>/dev/null
+      rm -f "$WS/.tmp/logs/UAV${idx}_offboard_ego.pid"
     fi
   done
   sleep 1
@@ -98,7 +98,7 @@ case "$1" in
   *)
     for idx in "$@"; do
       if ! start_uav "$idx"; then
-        echo "startup stopped before UAV$idx; inspect $WS/.tmp/UAV${idx}_offboard_ego.log" >&2
+        echo "startup stopped before UAV$idx; inspect $WS/.tmp/logs/UAV${idx}_offboard_ego.log" >&2
         exit 1
       fi
     done
