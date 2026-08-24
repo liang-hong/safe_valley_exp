@@ -7,6 +7,8 @@
 #   bash src/safe_valley_exp/startup_offboard_ego.sh               # 默认启动 UAV1 (tgt_system 1)
 #
 # 每个 UAV 一个独立 Master：UAV$idx -> 11310+idx
+# 每机正式订阅其余 14 机经 topology bridge 重发布的 trajectory_intent。
+# 测试时可用 EGO_REBOUND_UAVS="1 15" 仅为指定机显式开启主动 rebound；默认全关。
 # 端口公式（与 uav_offboard_sim.launch 一致）：
 #   udp_port = 24540 - 1 + tgt_system
 #   gcs_port = 34580 - 1 + tgt_system
@@ -32,32 +34,66 @@ source "$PX4_ROOT/Tools/setup_gazebo.bash" "$PX4_ROOT" "$PX4_BUILD"
 export ROS_PACKAGE_PATH="$ROS_PACKAGE_PATH:$PX4_ROOT:$PX4_ROOT/Tools/sitl_gazebo"
 
 STARTUP_TIMEOUT_S=${STARTUP_TIMEOUT_S:-120}
+EGO_REBOUND_UAVS=${EGO_REBOUND_UAVS:-}
+
+rebound_enabled() {
+  local wanted=$1
+  local configured
+  for configured in $EGO_REBOUND_UAVS; do
+    if [ "$configured" = "$wanted" ]; then
+      echo true
+      return
+    fi
+  done
+  echo false
+}
+
+neighbor_topics() {
+  local idx=$1
+  local suffix=$2
+  local topics=""
+  local neighbor_idx
+  for neighbor_idx in $(seq 1 15); do
+    if [ "$neighbor_idx" -eq "$idx" ]; then
+      continue
+    fi
+    if [ -n "$topics" ]; then
+      topics+=","
+    fi
+    topics+="/UAV${neighbor_idx}/${suffix}"
+  done
+  echo "$topics"
+}
+
+print_config() {
+  local idx
+  for idx in "$@"; do
+    printf 'UAV%s enable_rebound=%s neighbor_intents=%s\n' \
+      "$idx" "$(rebound_enabled "$idx")" "$(neighbor_topics "$idx" trajectory_intent)"
+  done
+}
 
 start_uav() {
   local idx=$1
   local master_port=$((11310 + idx))
   local uav_name="UAV$idx"
   local uav_id="UAV$idx"
-  local neighbor_odom_topics=""
-  local neighbor_idx
-  for neighbor_idx in $(seq 1 15); do
-    if [ "$neighbor_idx" -eq "$idx" ]; then
-      continue
-    fi
-    if [ -n "$neighbor_odom_topics" ]; then
-      neighbor_odom_topics+=","
-    fi
-    neighbor_odom_topics+="/UAV${neighbor_idx}/mavros/local_position/odom"
-  done
+  local neighbor_odom_topics
+  local neighbor_intents
+  local enable_rebound
+  neighbor_odom_topics=$(neighbor_topics "$idx" "mavros/local_position/odom")
+  neighbor_intents=$(neighbor_topics "$idx" "trajectory_intent")
+  enable_rebound=$(rebound_enabled "$idx")
   export ROS_MASTER_URI="http://localhost:$master_port"
   export ROS_HOSTNAME=localhost
   nohup roslaunch safe_valley_exp uav_offboard_ego.launch \
     uav_name:=$uav_name uav_id:=$uav_id tgt_system:=$idx \
     neighbor_odom_topics:=$neighbor_odom_topics \
+    neighbor_intents:=$neighbor_intents enable_rebound:=$enable_rebound \
     interfaces_version:=sitl-ego-combined \
     > "$WS/.tmp/logs/${uav_name}_offboard_ego.log" 2>&1 &
   echo "$!" > "$WS/.tmp/logs/${uav_name}_offboard_ego.pid"
-  echo "started $uav_name (master=$master_port, tgt_system=$idx, pid=$!)"
+  echo "started $uav_name (master=$master_port, tgt_system=$idx, rebound=$enable_rebound, pid=$!)"
 
   echo "waiting $uav_name ROS Master and MAVROS state (timeout=${STARTUP_TIMEOUT_S}s)"
   if ! timeout "$STARTUP_TIMEOUT_S" bash -c \
@@ -90,6 +126,10 @@ if [ "$#" -eq 0 ]; then
 fi
 
 case "$1" in
+  config)
+    shift
+    print_config "$@"
+    ;;
   stop)
     shift
     stop_all "${@:-}"
