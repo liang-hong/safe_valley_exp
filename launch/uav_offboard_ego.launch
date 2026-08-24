@@ -18,6 +18,9 @@
   <arg name="leader_odom_topic_prefix" default="" />
   <arg name="neighbor_odom_topics" default="" />
   <arg name="ego_state_timeout_s" default="200.0" />
+  <arg name="safety_supervisor_mode" default="shadow" />
+  <arg name="diagnostic_log_dir"
+       default="/home/ub20tg/catkin_swarm6-2/runtime_logs/ego_planner" />
 
   <!-- 1. MAVROS 对接本机 PX4 SITL 实例 -->
   <include file="$(find mavros)/launch/px4.launch">
@@ -39,6 +42,8 @@
     <arg name="leader_odom_topic_prefix" value="$(arg leader_odom_topic_prefix)"/>
     <arg name="neighbor_odom_topics" value="$(arg neighbor_odom_topics)"/>
     <arg name="ego_state_timeout_s" value="$(arg ego_state_timeout_s)"/>
+    <arg name="safety_supervisor_mode" value="$(arg safety_supervisor_mode)"/>
+    <arg name="diagnostic_log_dir" value="$(arg diagnostic_log_dir)"/>
     <!-- arm/OFFBOARD and PX4 parameter setup belong to offboard_takeoff_15.py. -->
     <arg name="configure_px4_params" value="false" />
     <!-- 状态发布到全局 uav_task_state，供 swarm_bridge 订阅桥接至 GCS_A -->
