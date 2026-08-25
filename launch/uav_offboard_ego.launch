@@ -63,4 +63,13 @@
   <!-- 4. 一次性全局原点设置和 MAVROS 回读确认。 -->
   <node pkg="swarm_uav_executor" type="gp_origin_receiver.py"
         name="gp_origin_receiver" output="screen"/>
+
+  <!-- 5. GPS 时钟偏置：订阅 /mavros/time_reference，10s 滑动均值，1Hz 发布 gps_bias
+       （邻机经 bridge 转发，接收端用 T_own = T_other - bias_other + bias_own 修正机间时间戳） -->
+  <node pkg="safe_valley_exp" type="gps_bias_node.py"
+        name="gps_bias_node" output="screen">
+    <param name="~window_s" value="10.0" />
+    <param name="~publish_rate_hz" value="1.0" />
+    <param name="~lockout_s" value="3.0" />
+  </node>
 </launch>
