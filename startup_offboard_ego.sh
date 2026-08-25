@@ -35,6 +35,15 @@ export ROS_PACKAGE_PATH="$ROS_PACKAGE_PATH:$PX4_ROOT:$PX4_ROOT/Tools/sitl_gazebo
 
 STARTUP_TIMEOUT_S=${STARTUP_TIMEOUT_S:-120}
 EGO_REBOUND_UAVS=${EGO_REBOUND_UAVS:-}
+EGO_SAFETY_SUPERVISOR_MODE=${EGO_SAFETY_SUPERVISOR_MODE:-shadow}
+
+case "$EGO_SAFETY_SUPERVISOR_MODE" in
+  off|shadow|active) ;;
+  *)
+    echo "ERROR: EGO_SAFETY_SUPERVISOR_MODE must be off, shadow, or active" >&2
+    exit 2
+    ;;
+esac
 
 rebound_enabled() {
   local wanted=$1
@@ -68,8 +77,9 @@ neighbor_topics() {
 print_config() {
   local idx
   for idx in "$@"; do
-    printf 'UAV%s enable_rebound=%s neighbor_intents=%s\n' \
-      "$idx" "$(rebound_enabled "$idx")" "$(neighbor_topics "$idx" trajectory_intent)"
+    printf 'UAV%s enable_rebound=%s safety_supervisor_mode=%s neighbor_intents=%s\n' \
+      "$idx" "$(rebound_enabled "$idx")" "$EGO_SAFETY_SUPERVISOR_MODE" \
+      "$(neighbor_topics "$idx" trajectory_intent)"
   done
 }
 
@@ -90,10 +100,11 @@ start_uav() {
     uav_name:=$uav_name uav_id:=$uav_id tgt_system:=$idx \
     neighbor_odom_topics:=$neighbor_odom_topics \
     neighbor_intents:=$neighbor_intents enable_rebound:=$enable_rebound \
+    safety_supervisor_mode:=$EGO_SAFETY_SUPERVISOR_MODE \
     interfaces_version:=sitl-ego-combined \
     > "$WS/.tmp/logs/${uav_name}_offboard_ego.log" 2>&1 &
   echo "$!" > "$WS/.tmp/logs/${uav_name}_offboard_ego.pid"
-  echo "started $uav_name (master=$master_port, tgt_system=$idx, rebound=$enable_rebound, pid=$!)"
+  echo "started $uav_name (master=$master_port, tgt_system=$idx, rebound=$enable_rebound, safety=$EGO_SAFETY_SUPERVISOR_MODE, pid=$!)"
 
   echo "waiting $uav_name ROS Master and MAVROS state (timeout=${STARTUP_TIMEOUT_S}s)"
   if ! timeout "$STARTUP_TIMEOUT_S" bash -c \
