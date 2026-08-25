@@ -17,8 +17,8 @@
   <arg name="formation_offsets" default="{}" />
   <arg name="leader_odom_topic_prefix" default="" />
   <arg name="neighbor_odom_topics" default="" />
-  <arg name="ego_state_timeout_s" default="200.0" />
-  <arg name="ego_state_transition_timeout_s" default="2.0" />
+  <arg name="uav_task_timeout_s" default="200.0" />
+  <arg name="ego_state_timeout_s" default="2.0" />
   <arg name="safety_supervisor_mode" default="shadow" />
   <arg name="diagnostic_log_dir"
        default="/home/ub20tg/catkin_swarm6-2/runtime_logs/ego_planner" />
@@ -42,8 +42,8 @@
     <arg name="formation_offsets" value="$(arg formation_offsets)"/>
     <arg name="leader_odom_topic_prefix" value="$(arg leader_odom_topic_prefix)"/>
     <arg name="neighbor_odom_topics" value="$(arg neighbor_odom_topics)"/>
+    <arg name="uav_task_timeout_s" value="$(arg uav_task_timeout_s)"/>
     <arg name="ego_state_timeout_s" value="$(arg ego_state_timeout_s)"/>
-    <arg name="ego_state_transition_timeout_s" value="$(arg ego_state_transition_timeout_s)"/>
     <arg name="safety_supervisor_mode" value="$(arg safety_supervisor_mode)"/>
     <arg name="diagnostic_log_dir" value="$(arg diagnostic_log_dir)"/>
     <!-- arm/OFFBOARD and PX4 parameter setup belong to offboard_takeoff_15.py. -->
