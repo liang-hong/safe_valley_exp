@@ -2,7 +2,9 @@
 
 [English](README-en.md) | [中文]
 
-这是一个基于模块化设计的 ROS 集群无人机控制框架，具备分布式通信、时空一致性同步以及高精度集群控制算法。
+> 说明：本包的核心 flock 算法（`safe_flock_*`）是**独立 legacy 参考实现**，未用于当前 Group A
+> 正式任务链路。正式链路（GCS_A 分发 → executor → ego_planner_driver → setpoint_relay → PX4）
+> 见 `tcp_to_ros/README.md`；本包仅提供 15 机仿真 launch 与起飞脚本供工程启动使用。
 
 ## 项目概述
 本功能包旨在实现多机部署的“零配置”迁移。通过将核心逻辑拆分为四个独立模块，实现了控制状态机、参数加载、底层通信与数学算法的彻底解耦，极大方便了后续算法的迭代与实机部署。
@@ -71,10 +73,10 @@ uav_offboard_real.launch
 
 ```bash
 # 本地 Gitea
-git clone -b master http://ub20tglh.local:3000/ub20tg/swarm_topology_bridge.git
+git clone -b services http://ub20tglh.local:3000/ub20tg/swarm_topology_bridge.git
 
 # 云端 GitHub
-git clone -b master https://github.com/liang-hong/swarm_topology_bridge.git
+git clone -b services https://github.com/liang-hong/swarm_topology_bridge.git
 ```
 
 ## 安装与编译
