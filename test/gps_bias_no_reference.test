@@ -1,0 +1,11 @@
+<launch>
+  <!-- Deliberately no MAVROS, bridge, peer master, TimeReference, or offset injection. -->
+  <node pkg="safe_valley_exp" type="gps_bias_node.py"
+        name="gps_bias_node" output="screen">
+    <param name="window_s" value="10.0" />
+    <param name="publish_rate_hz" value="10.0" />
+    <param name="lockout_s" value="3.0" />
+  </node>
+  <test test-name="gps_bias_no_reference" pkg="safe_valley_exp"
+        type="test_gps_bias_no_reference_ros.py" time-limit="15" />
+</launch>

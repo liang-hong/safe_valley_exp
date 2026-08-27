@@ -17,22 +17,51 @@ GPS 失锁（time_reference 超过 lockout_s 未更新）时停止发布新值�
 用法：rosrun safe_valley_exp gps_bias_node.py
 参数（私有）：~window_s(10.0) ~publish_rate_hz(1.0) ~lockout_s(3.0)
 """
-import rospy
 from collections import deque
 
+import rospy
 from sensor_msgs.msg import TimeReference
 from std_msgs.msg import Float64
 
 
+class BiasEstimator:
+    """ROS 无关的 GPS 时钟偏置滑动窗口估计器。"""
+
+    def __init__(self, window_s=10.0, lockout_s=3.0):
+        self.window_s = float(window_s)
+        self.lockout_s = float(lockout_s)
+        self.samples = deque()          # [(received_at_s, bias_s), ...]
+        self.last_bias_s = None         # 最近窗口均值
+        self.last_update_s = None       # 最近一次参考到达时刻
+
+    def observe(self, received_at_s, ros_stamp_s, reference_s):
+        """接收一次时间参考，并返回当前窗口估计值（所有参数单位为秒）。"""
+        received_at_s = float(received_at_s)
+        bias_s = float(ros_stamp_s) - float(reference_s)
+        self.samples.append((received_at_s, bias_s))
+        cutoff = received_at_s - self.window_s
+        # 保留恰好位于窗口左边界的样本，与原节点行为一致。
+        while self.samples and self.samples[0][0] < cutoff:
+            self.samples.popleft()
+        self.last_bias_s = sum(bias for _, bias in self.samples) / len(self.samples)
+        self.last_update_s = received_at_s
+        return self.last_bias_s
+
+    def value_at(self, now_s):
+        """返回当前估计；超过 lockout（严格大于）或尚无样本时返回 None。"""
+        if self.last_bias_s is None:
+            return None
+        if float(now_s) - self.last_update_s > self.lockout_s:
+            return None
+        return self.last_bias_s
+
+
 class GpsBiasNode:
     def __init__(self):
-        self.window_s = float(rospy.get_param("~window_s", 10.0))
+        window_s = float(rospy.get_param("~window_s", 10.0))
         self.publish_rate_hz = float(rospy.get_param("~publish_rate_hz", 1.0))
-        self.lockout_s = float(rospy.get_param("~lockout_s", 3.0))
-
-        self.samples = deque()          # [(now_s, bias_s), ...] 滑动窗口
-        self.last_bias_s = None         # 最近窗口均值
-        self.last_update_s = None       # 最近一次 time_reference 到达时刻
+        lockout_s = float(rospy.get_param("~lockout_s", 3.0))
+        self.estimator = BiasEstimator(window_s=window_s, lockout_s=lockout_s)
 
         self.pub = rospy.Publisher("gps_bias", Float64, queue_size=1, latch=True)
         rospy.Subscriber("/mavros/time_reference", TimeReference,
@@ -40,23 +69,18 @@ class GpsBiasNode:
         rospy.Timer(rospy.Duration(1.0 / self.publish_rate_hz), self.publish)
 
     def on_time_ref(self, msg):
-        now = rospy.Time.now().to_sec()
-        bias = (msg.header.stamp - msg.time_ref).to_sec()
-        self.samples.append((now, bias))
-        cutoff = now - self.window_s
-        while self.samples and self.samples[0][0] < cutoff:
-            self.samples.popleft()
-        self.last_bias_s = sum(b for _, b in self.samples) / len(self.samples)
-        self.last_update_s = now
+        self.estimator.observe(
+            rospy.Time.now().to_sec(),
+            msg.header.stamp.to_sec(),
+            msg.time_ref.to_sec(),
+        )
 
     def publish(self, event):
-        if self.last_bias_s is None:
-            return  # 尚无 GPS 时间参考，不发
-        if self.last_update_s is not None and \
-                rospy.Time.now().to_sec() - self.last_update_s > self.lockout_s:
-            # GPS 失锁：停止发布新值（latch 保留最后一个；接收端按接收时刻判新鲜）
+        bias_s = self.estimator.value_at(rospy.Time.now().to_sec())
+        if bias_s is None:
+            # 尚无参考或 GPS 失锁：不发新值；latch 保留最后一个。
             return
-        self.pub.publish(Float64(self.last_bias_s))
+        self.pub.publish(Float64(bias_s))
 
 
 if __name__ == "__main__":
