@@ -4,14 +4,14 @@
 
 职责（配合正确启动流程）：
   0. 先启动机载层（offboard 程序）：MAVROS + ego driver + executor + bridge，
-     统一坐标系并待命；ego driver 启动后处于 TAKEOFF 状态，经 setpoint_relay
+     统一坐标系并待命；ego driver 初态为 HOLD，经 setpoint_relay
      以 30Hz 独占发布 /mavros/setpoint_raw/local（唯一 MAVROS setpoint 发布者）。
   1. 本脚本对选中的每架 UAV：
      a. 先切 HOLD（Auto 模式，arm 时不要求 RC 输入）
      b. arm 无人机
      c. 切 OFFBOARD
-     d. 成功进入 OFFBOARD 后立即退出；后续 TAKEOFF/HOLD/IDLE
-         状态转换完全由 ego_planner_driver 负责
+     d. 成功进入 OFFBOARD 后立即退出；ego_planner_driver 在 armed + OFFBOARD
+         上升沿进入 TAKEOFF，起飞完成后回到 HOLD
 
 用法：
   python3 offboard_takeoff_15.py 1 2 3
@@ -114,7 +114,7 @@ class TakeoffUAV:
             rospy.logerr("UAV%d: HOLD/AUTO.LOITER 预选全部失败", self.idx)
             return 1
 
-        # 3) arm。ego_planner_driver 自己看 MAVROS 状态，触发 TAKEOFF。
+        # 3) arm。ego_planner_driver 等待 armed + OFFBOARD 上升沿触发 TAKEOFF。
         try:
             rospy.wait_for_service("/mavros/cmd/arming", timeout=10)
             arm = rospy.ServiceProxy("/mavros/cmd/arming", CommandBool)
