@@ -31,7 +31,8 @@
     <arg name="tgt_component" value="1"/>
   </include>
 
-  <!-- 2. EGO-Swarm executor（ego driver + 本地 safety lease watchdog） -->
+  <!-- 2. EGO-Swarm executor（ego driver 集成；arm/OFFBOARD 与 PX4 参数由
+        offboard_takeoff_15.py 负责，本 launch 不含 watchdog） -->
   <include file="$(find swarm_uav_executor)/launch/uav_executor_ego.launch">
     <arg name="uav_id" value="$(arg uav_id)"/>
     <arg name="exec_target" value="$(arg uav_name)"/>
@@ -65,11 +66,10 @@
         name="gp_origin_receiver" output="screen"/>
 
   <!-- 5. GPS 时钟偏置：订阅 /mavros/time_reference，10s 滑动均值，1Hz 发布 gps_bias
-       （邻机经 bridge 转发，接收端用 T_own = T_other - bias_other + bias_own 修正机间时间戳） -->
+       （邻机经 bridge 转发，接收端用 T_own = T_other - bias_other + bias_own 修正机间时间戳）。
+       参数唯一来源 gps_bias_defaults.yaml（implementation_plan_26082916 §6）。 -->
   <node pkg="safe_valley_exp" type="gps_bias_node.py"
         name="gps_bias_node" output="screen">
-    <param name="~window_s" value="10.0" />
-    <param name="~publish_rate_hz" value="1.0" />
-    <param name="~lockout_s" value="3.0" />
+    <rosparam command="load" file="$(find safe_valley_exp)/config/gps_bias_defaults.yaml" />
   </node>
 </launch>

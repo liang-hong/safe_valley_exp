@@ -19,9 +19,20 @@ GPS 失锁（time_reference 超过 lockout_s 未更新）时停止发布新值�
 """
 from collections import deque
 
+import math
+
 import rospy
 from sensor_msgs.msg import TimeReference
 from std_msgs.msg import Float64
+
+
+def _finite_value(value, name, min_value):
+    value = float(value)
+    if not math.isfinite(value) or value < min_value:
+        rospy.logfatal("%s=%r invalid (must be finite and >=%s); refusing to start",
+                       name, value, min_value)
+        raise ValueError(f"{name} must be finite and >= {min_value}")
+    return value
 
 
 class BiasEstimator:
@@ -58,9 +69,12 @@ class BiasEstimator:
 
 class GpsBiasNode:
     def __init__(self):
-        window_s = float(rospy.get_param("~window_s", 10.0))
-        self.publish_rate_hz = float(rospy.get_param("~publish_rate_hz", 1.0))
-        lockout_s = float(rospy.get_param("~lockout_s", 3.0))
+        # 参数唯一来源 gps_bias_defaults.yaml（implementation_plan_26082916 §6）；
+        # finite/范围校验 fail-fast：window_s/publish_rate_hz >0、lockout_s >=0。
+        window_s = _finite_value(rospy.get_param("~window_s", 10.0), "window_s", 1e-9)
+        self.publish_rate_hz = _finite_value(
+            rospy.get_param("~publish_rate_hz", 1.0), "publish_rate_hz", 1e-9)
+        lockout_s = _finite_value(rospy.get_param("~lockout_s", 3.0), "lockout_s", 0.0)
         self.estimator = BiasEstimator(window_s=window_s, lockout_s=lockout_s)
 
         self.pub = rospy.Publisher("gps_bias", Float64, queue_size=1, latch=True)

@@ -1,230 +1,67 @@
-# Safe Valley 实验功能包 (safe_valley_exp)
+# safe_valley_exp
 
-[English](README-en.md) | [中文]
+当前用途（implementation_plan_26082916 §6 已清理 flock legacy 示例）：
 
-> 说明：本包的核心 flock 算法（`safe_flock_*`）是**独立 legacy 参考实现**，未用于当前 Group A
-> 正式任务链路。正式链路（GCS_A 分发 → executor → ego_planner_driver → setpoint_relay → PX4）
-> 见 `tcp_to_ros/README.md`；本包仅提供 15 机仿真 launch 与起飞脚本供工程启动使用。
+- **GPS 时钟偏置节点**（`gps_bias_node.py`）：订阅 `/mavros/time_reference`（GPS PPS），
+  滑动窗口均值估计本机 ROS 时钟与 GPS 绝对时间偏差，以固定频率发布 `gps_bias`（latch）。
+  邻机经 topology bridge 转发 bias，接收端用 `T_own = T_other - bias_other + bias_own`
+  修正机间时间戳（planner intent 时间对齐）。
+- **机载 offboard EGO 启动**（`uav_offboard_ego.launch` + `startup_offboard_ego.sh`）：
+  MAVROS + `uav_executor_ego.launch` + Group A topology bridge + GPS bias 节点。
+- **15-UAV SITL 仿真启动**（`multi_uav_ego_15sim.launch` / `multi_uav_ego_4sim.launch` /
+  `multi_uav_sim*.launch`）：Gazebo 世界 spawn iris_0..iris_14。
+- **起飞/MAVROS 等待**：`offboard_takeoff_15.py`、`wait_mavros.py`。
 
-## 项目概述
-本功能包旨在实现多机部署的“零配置”迁移。通过将核心逻辑拆分为四个独立模块，实现了控制状态机、参数加载、底层通信与数学算法的彻底解耦，极大方便了后续算法的迭代与实机部署。
+## 目录结构
 
-## 模块化架构
-四个核心模块：
-- **`safe_flock_main.py`**: 主入口与状态机。负责管理 `hover` (悬停)、`form` (编队) 和 `navi` (导航/集群) 模式的切换逻辑。
-- **`flock_config.py`**: 身份识别与参数中心。支持通过 `roslaunch`、主机名自动识别本机 ID，并从 YAML 加载所有算法增益。
-- **`flock_comm.py`**: 通信管理模块。实现了基于 GPS 授时 (`TimeReference`) 的系统时钟偏差校准，以及基于 Leader 广播的全球原点同步。
-- **`flock_method.py`**: 方法库。封装了高精度 Reynolds 集群算法（凝聚、对齐、分离）以及带“侧向逃逸”逻辑的动态椭圆势场避障模型。
-
-若干辅助模块：
-- **`submode_publisher.py`**: 子模式发布模块。负责将当前子模式（如 `hover`、`form`、`navi`）发布到 `/offb_submode` 主题。
-- **`wait_mavros.py`**: 等待 MAVROS 连接模块。负责在主节点启动前，等待 MAVROS 连接，确保所有无人机都能正常通信。
-
-## 程序调用关系
-
-```text
-multi_uav_sim.launch    # 复制到 px4/launch/ 目录下使用
-├── include → gazebo_ros/launch/empty_world.launch  # 加载gazebo环境
-└── include → px4/launch/single_vehicle_spawn_xtd.launch   # 加载无人机实例*4
-    ├── group ns=iris_0 (ID=0, mavlink_tcp_port=4560, udp_gimbal_port=13030)
-    ├── group ns=iris_1 (ID=1, mavlink_tcp_port=4561, udp_gimbal_port=13031)
-    ├── group ns=iris_2 (ID=2, mavlink_tcp_port=4562, udp_gimbal_port=13032)
-    └── group ns=iris_3 (ID=3, mavlink_tcp_port=4563, udp_gimbal_port=13033)
-
-uav_offboard_sim.launch
-├── include → mavros/launch/px4.launch          # 加载 mavros
-└── include → safe_flock_sim.launch
-    ├── node safe_flock: wait_mavros.py         # 等待 MAVROS 连接
-    │   └── execv → safe_flock_main.py          # 主程序
-    ├── node submode_publisher: submode_publisher.py  # submode按钮模拟
-    ├── rospackage: swarm_topology_bridge       # 通信功能包
-    │   └── node swarm_bridge: bridge_node.py
-    └── node rosbag_record: rosbag_record.py    # 数据记录
-
-uav_offboard_real.launch
-├── include → mavros/launch/px4.launch          # 加载 mavros
-└── include → safe_flock_real.launch
-    ├── node safe_flock: wait_mavros.py         # 等待 MAVROS 连接
-    │   └── execv → safe_flock_main.py          # 主程序
-    ├── rospackage: swarm_topology_bridge       # 通信功能包
-    │   └── node swarm_bridge: bridge_node.py
-    └── node rosbag_record: rosbag_record.py    # 数据记录
+```
+safe_valley_exp/
+├── config/gps_bias_defaults.yaml   # GPS bias 参数唯一来源（window_s/publish_rate_hz/lockout_s）
+├── launch/uav_offboard_ego.launch  # 机载 offboard EGO 启动（MAVROS+EGO+bridge+bias）
+├── launch/multi_uav_ego_*.launch   # 15/4 机 EGO 仿真（Gazebo spawn）
+├── launch/multi_uav_sim*.launch    # 通用多机仿真
+├── scripts/gps_bias_node.py        # GPS 时钟偏置估计/发布节点
+├── scripts/offboard_takeoff_15.py  # 15 机 arm/OFFBOARD 与 PX4 参数设置
+├── scripts/wait_mavros.py          # MAVROS 连接等待
+├── scripts/submode_publisher.py    # 子模式发布（测试辅助）
+├── startup_offboard_ego.sh         # 机载层启动脚本（UAV1..UAV15 -> 11311..11325）
+└── test/                           # gps_bias 单测 + wiring + rostest
 ```
 
+## GPS bias 参数
 
-## 关键技术特性
-- **时间一致性**：通过计算系统时钟与 GPS 时间的 Bias，实时修正他机 Odom 时间戳，解决跨机分布式系统的时间抖动问题。
-- **空间对齐**：Leader 自动获取全球定位并广播，Follower 同步设置 `set_gp_origin`，确保集群在统一的 ENU 坐标系下运行。
-- **垂直投影避碰**：在集群跟随过程中，将 Leader 视为垂直方向的虚拟轴（投影），从物理逻辑上规避了从机与领航者在高度层上的碰撞。
-- **动态椭圆避障**：离心率随速度动态变化的椭圆模型，包含“侧向避让”逻辑，有效解决速度与相对位置共线时的避障死锁。
+参数唯一来源 `config/gps_bias_defaults.yaml`（`gps_bias_node` 私有 namespace）：
 
-## 依赖
+| 参数 | 默认 | 说明 |
+|---|---|---|
+| `window_s` | 10.0 | 滑动均值窗口（秒） |
+| `publish_rate_hz` | 1.0 | 发布频率（Hz） |
+| `lockout_s` | 3.0 | GPS 失锁判定阈值（秒） |
 
-通信桥接依赖 `swarm_topology_bridge` 的 `master` 分支。该仓库为独立仓库，与 `safe_valley_exp` 平级放置于工作空间 `src/` 下，从而使 catkin 能将其识别为独立 ROS 包：
+校验：所有 double finite；`window_s`/`publish_rate_hz` >0、`lockout_s` >=0；
+非法配置节点 fail-fast。
 
-```text
-<catkin_workspace>/
-└── src/
-    ├── safe_valley_exp/
-    └── swarm_topology_bridge/
-```
-
-`swarm_topology_bridge` 的获取地址（任选其一）：
+## 启动
 
 ```bash
-# 本地 Gitea
-git clone -b services http://ub20tglh.local:3000/ub20tg/swarm_topology_bridge.git
-
-# 云端 GitHub
-git clone -b services https://github.com/liang-hong/swarm_topology_bridge.git
-```
-
-## 安装与编译
-兼容 ROS Melodic/Noetic 环境。
-```bash
-# 推荐使用 catkin build
-catkin build safe_valley_exp swarm_topology_bridge
-# 或者使用 catkin_make
-catkin_make --pkg safe_valley_exp swarm_topology_bridge
-```
-
-## 环境变量（ROS 日志重定向）
-
-为避免 ROS 运行日志散落在 `~/.ros/log`，本工作空间统一将运行日志重定向到 `.ros_home/`：
-
-```bash
+# 机载层（每机一个 Master）
 export ROS_HOME=/home/ub20tg/catkin_swarm6-2/.ros_home
 export ROS_LOG_DIR=/home/ub20tg/catkin_swarm6-2/.ros_home/log
-mkdir -p "$ROS_LOG_DIR"
+bash startup_offboard_ego.sh
 ```
 
-`startup_offboard_ego.sh` 与 `startup_safe_valley.sh` 已在开头自动设置上述环境变量；手动启动时请先在终端执行以上命令，确保当前工作空间所有 ROS 运行日志均写入 `.ros_home/log`。
+15 机 SITL 仿真世界（终端 A，Master 11300）：
 
-## 配置说明
-所有算法参数均在 `config/flock.yaml` 中定义：
-- `control`: 存储安全半径、最大速/加速度及各类算法增益。
-- `leader`: 设置 Leader 名称、轨迹参数（圆心、半径、速度）及 RC 通道映射。
-- `topology`: 定义集群的邻居拓扑关系（用于对齐算法）。
-
-## 仿真运行
-
-本功能包支持**多 ROS Master 隔离仿真**，以模拟“每机一套机载 ROS Master”的实机部署形态，并用 QGC 同时遥测多机。
-
-仿真建议采用“**仿真层 + 机载层**”两层结构（最少命令，最少耦合）：
-- **仿真层（1 个 Master）**：仅负责 Gazebo+ 多个 PX4 SITL 实例（多机）。不跑算法。
-- **机载层（N 个 Master）**：每台无人机一个独立 ROS Master，只跑 MAVROS + `swarm_topology_bridge` + `safe_valley_exp`。通过 `fcu_url` 用 UDP 连接到仿真层对应 PX4 实例。
-
-
-### 1. 启动仿真界面
-
-把 `multi_uav_sim.launch` 复制到 px4 功能包的 `launch` 目录下启动仿真界面
-
-**终端 A（仿真 Master：11300）**
 ```bash
-# 复制 multi_uav_sim.launch
-roscd px4/launch
-cp <catkin_workspace>/src/safe_valley_exp/launch/multi_uav_sim.launch .
-# 启动仿真界面
-export ROS_MASTER_URI=http://localhost:11300
-export ROS_HOSTNAME=localhost
-export GAZEBO_MASTER_URI=http://localhost:11345
-roslaunch px4 multi_uav_sim.launch
+roslaunch safe_valley_exp multi_uav_ego_15sim.launch
 ```
 
-### 2. 启动机载程序
+## 测试
 
-`source` safe_valley_exp所在工作空间的 `devel/setup.bash`，然后启动机载程序
-
-端口与系统号按 ID 偏移：
-- UAV6 (ID=0)：`fcu_url=udp://:24540@localhost:34580`，`tgt_system=1`
-- UAV7 (ID=1)：`fcu_url=udp://:24541@localhost:34581`，`tgt_system=2`
-
-**终端B1 UAV6（机载 Master：11311）**
 ```bash
-# source，按实际位置修改工作空间地址
-cd <catkin_workspace>
-source devel/setup.bash
-# 启动机载程序
-export ROS_MASTER_URI=http://localhost:11311
-export ROS_HOSTNAME=localhost
-roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV6 tgt_system:=1
+catkin run_tests safe_valley_exp
 ```
 
-**终端B2 UAV7（机载 Master：11312）**
-```bash
-# source，按实际位置修改工作空间地址
-cd <catkin_workspace>
-source devel/setup.bash
-# 启动机载程序
-export ROS_MASTER_URI=http://localhost:11312
-export ROS_HOSTNAME=localhost
-roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV7 tgt_system:=2
-```
-
-**终端B3 UAV8（机载 Master：11313）**
-```bash
-# source，按实际位置修改工作空间地址
-cd <catkin_workspace>
-source devel/setup.bash
-# 启动机载程序
-export ROS_MASTER_URI=http://localhost:11313
-export ROS_HOSTNAME=localhost
-roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV8 tgt_system:=3
-```
-
-**终端B4 UAV9（机载 Master：11314）**
-```bash
-# source，按实际位置修改工作空间地址
-cd <catkin_workspace>
-source devel/setup.bash
-# 启动机载程序
-export ROS_MASTER_URI=http://localhost:11314
-export ROS_HOSTNAME=localhost
-roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV9 tgt_system:=4
-```
-
-### Rosbag 记录
-`uav_offboard_sim.launch` 和 `uav_offboard_real.launch` 默认开启 rosbag 记录，输出目录为 `~/rosbagrec`（目录不存在会自动创建）。
-
-记录话题：
-- `/mavros/setpoint_velocity/cmd_vel`（legacy flock 场景）
-- `/mavros/setpoint_position/local`（legacy flock 场景）
-- `/mavros/setpoint_raw/local`（EGO 控制链路，setpoint_relay 唯一发布者）
-- `/mavros/global_position/set_gp_origin`
-- `/mavros/state`
-- `/mavros/local_position/odom`
-- `/offb_submode`
-
-关闭记录或修改输出目录：
-```bash
-# 关闭记录
-roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV6 tgt_system:=1 enable_rosbag:=false
-
-# 修改输出目录
-roslaunch safe_valley_exp uav_offboard_sim.launch uav_name:=UAV6 tgt_system:=1 rosbag_dir:=/home/ub20tg/rosbagrec
-```
-
-### 4. QGC 遥测要点
-QGC 看到“第二台标签但没有位置/图标”，通常表示心跳已通但该 PX4 实例没有接入仿真器产生位置数据。优先检查：
-- 对应 PX4 实例是否通过 `single_vehicle_spawn_xtd.launch` 成功启动并生成模型
-- 对应 MAVROS 的 `/mavros/state` 是否 `connected: True`
-
----
-
-## 实机部署
-在真实的机载电脑上，首先通过串口连接到飞控Telem端口，接着调试mavros功能包的px4.launch文件参数完成连接，然后运行以下launch指令，会自动启动mavros节点和算法程序：
-```bash
-# source，按实际位置修改工作空间地址
-cd <catkin_workspace>
-source devel/setup.bash
-# 启动机载程序，程序会自动识别 hostname (如主机名为 UAV6，则自动以 UAV6 身份运行)
-roslaunch safe_valley_exp uav_offboard_real.launch
-```
-
----
-若需实现新算法：
-1. 在 `flock.yaml` 中添加所需参数。
-2. 在 `flock_config.py` 中补充参数加载代码。
-3. 在 `flock_method.py` 中编写新的数学逻辑函数。
-4. 在 `safe_flock_main.py` 的执行循环中调用新函数并发布指令。
-5. 在 `submode_publisher.py` 中添加对新算法的模拟输入逻辑。
+- `test/test_gps_bias.py`：`BiasEstimator` 纯逻辑单测（无需 ROS）。
+- `test/test_gps_bias_wiring.py`：launch 加载 canonical YAML + 脚本权限静态检查。
+- `test/gps_bias_no_reference.test`：rostest（无参考时钟失锁行为）。
